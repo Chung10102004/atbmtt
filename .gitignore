@@ -1,9 +1,23 @@
 .venv/
 data/
 kaggle/kernel/
+kaggle/kernel_llm/
+kaggle/kernel_features/
 __pycache__/
+*.py[cod]
+reports/.mplcache/
 # Kaggle output: keep only the results files
 results/kaggle/*
 !results/kaggle/results/
 # contains the API key - use llm_config.example.py as the template
 llm_config.py
+.env
+.env.*
+!.env.example
+.kaggle/
+kaggle.json
+access_token
+*.pem
+*.key
+results/rerun*/
+results/feature_study*/

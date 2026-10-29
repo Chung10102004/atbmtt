@@ -1,5 +1,7 @@
 """Load IBM AML (HI-Small), build features, and split train/val/test by time."""
 import os
+import json
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -7,7 +9,12 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW_CSV = Path(os.environ.get("AML_RAW_CSV", ROOT / "data/raw/HI-Small_Trans.csv"))
-FEATURES_PARQUET = ROOT / "data/processed/features.parquet"
+FEATURE_VERSION = "causal-seconds-v3"
+FEATURES_PARQUET = Path(os.environ.get("AML_FEATURES_PARQUET", ROOT / "data/processed/features_causal_v3.parquet"))
+PAY_FORMATS = ["ACH", "Bitcoin", "Cash", "Cheque", "Credit Card", "Reinvestment", "Wire"]
+CURRENCIES = ["Australian Dollar", "Bitcoin", "Brazil Real", "Canadian Dollar", "Euro",
+              "Mexican Peso", "Ruble", "Rupee", "Saudi Riyal", "Shekel", "Swiss Franc",
+              "UK Pound", "US Dollar", "Yen", "Yuan"]
 
 LABEL = "is_laundering"
 # Categorical features (integer codes) - augmentation must not interpolate these
@@ -22,7 +29,7 @@ def load_raw(path=RAW_CSV):
     return df.sort_values("Timestamp", kind="stable").reset_index(drop=True)
 
 
-def _account_history_features(src, dst, t, log_amt):
+def _account_history_features(src, dst, t, log_paid, log_received):
     """Account history features computed causally (only transactions *before* the current one).
 
     Each transaction produces 2 events: an 'out' for the sender and an 'in' for the receiver.
@@ -34,7 +41,7 @@ def _account_history_features(src, dst, t, log_amt):
         "tx": np.concatenate([tx, tx]),
         "is_out": np.concatenate([np.ones(n, np.int8), np.zeros(n, np.int8)]),
         "t": np.concatenate([t, t]),
-        "amt": np.concatenate([log_amt, log_amt]),
+        "amt": np.concatenate([log_paid, log_received]),
     })
     ev = ev.iloc[np.lexsort((ev["tx"], ev["t"], ev["acct"]))].reset_index(drop=True)
     ev["day"] = ev["t"] // 86400
@@ -55,6 +62,14 @@ def _account_history_features(src, dst, t, log_amt):
 
     cols = ["prev_n", "prev_out", "prev_in", "prev_out_amt_mean", "prev_in_amt_mean",
             "secs_since_prev", "same_day_n", "same_day_dir_n"]
+    # A self-transfer emits two events. Both views must see the history before
+    # the transaction, rather than the receiver seeing this transaction's out event.
+    self_receiver = ((ev["acct"] == ev["acct"].shift()) & (ev["tx"] == ev["tx"].shift()))
+    idx = np.flatnonzero(self_receiver.to_numpy())
+    common = [c for c in cols if c != "same_day_dir_n"]
+    ev.loc[idx, common] = ev.loc[idx - 1, common].to_numpy()
+    ev.loc[idx, "same_day_dir_n"] = (
+        ev.loc[idx - 1, "same_day_n"].to_numpy() - ev.loc[idx - 1, "same_day_dir_n"].to_numpy())
     feats = {}
     for role, mask in (("src", ev["is_out"] == 1), ("dst", ev["is_out"] == 0)):
         sub = ev.loc[mask]
@@ -71,17 +86,24 @@ def build_features(df):
     codes, _ = pd.factorize(pd.concat([src_s, dst_s], ignore_index=True))
     n = len(df)
     src, dst = codes[:n], codes[n:]
-    t = df["Timestamp"].astype("int64").to_numpy() // 10**9
+    t = df["Timestamp"].to_numpy(dtype="datetime64[s]").astype(np.int64)
     log_paid = np.log1p(df["Amount Paid"].to_numpy())
+    log_received = np.log1p(df["Amount Received"].to_numpy())
+
+    def encode(column, categories):
+        codes = pd.Categorical(df[column], categories=categories).codes
+        if (codes < 0).any():
+            raise ValueError(f"Unknown category in {column}")
+        return codes.astype(np.int8)
 
     f = pd.DataFrame({
         "log_amt_paid": log_paid.astype(np.float32),
-        "log_amt_recv": np.log1p(df["Amount Received"]).astype(np.float32),
+        "log_amt_recv": log_received.astype(np.float32),
         "hour": df["Timestamp"].dt.hour.astype(np.int8),
-        "weekday": df["Timestamp"].dt.weekday.astype(np.int8),
-        "pay_format": pd.factorize(df["Payment Format"], sort=True)[0].astype(np.int8),
-        "pay_currency": pd.factorize(df["Payment Currency"], sort=True)[0].astype(np.int8),
-        "recv_currency": pd.factorize(df["Receiving Currency"], sort=True)[0].astype(np.int8),
+        "weekday": df["Timestamp"].dt.day_of_week.astype(np.int8),
+        "pay_format": encode("Payment Format", PAY_FORMATS),
+        "pay_currency": encode("Payment Currency", CURRENCIES),
+        "recv_currency": encode("Receiving Currency", CURRENCIES),
         "same_bank": (df["From Bank"] == df["To Bank"]).astype(np.int8),
         "self_txn": (src == dst).astype(np.int8),
         "cross_currency": (df["Payment Currency"] != df["Receiving Currency"]).astype(np.int8),
@@ -90,25 +112,57 @@ def build_features(df):
     # Number of prior transactions on the same (sender -> receiver) pair
     f["pair_prev_n"] = (pd.Series(src).groupby([src, dst], sort=False).cumcount()
                         .to_numpy(dtype=np.float32))
-    f = pd.concat([f, _account_history_features(src, dst, t, log_paid)], axis=1)
+    f = pd.concat([f, _account_history_features(src, dst, t, log_paid, log_received)], axis=1)
     f["timestamp"] = t
     f[LABEL] = df["Is Laundering"].astype(np.int8).to_numpy()
     return f
 
 
 def load_features(rebuild=False):
+    def raw_hash():
+        digest = hashlib.sha256()
+        with RAW_CSV.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+
     if FEATURES_PARQUET.exists() and not rebuild:
-        return pd.read_parquet(FEATURES_PARQUET)
+        meta_path = FEATURES_PARQUET.with_suffix(".meta.json")
+        if not meta_path.exists():
+            raise ValueError("Unversioned feature cache; rebuild from raw data")
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        source_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+        if meta.get("feature_version") != FEATURE_VERSION or meta.get("source_sha256") != source_hash:
+            raise ValueError("Stale feature cache; rebuild from raw data")
+        if meta.get("raw_sha256") != raw_hash():
+            raise ValueError("Raw input differs from the cached features; rebuild from raw data")
+        f = pd.read_parquet(FEATURES_PARQUET)
+        if not f["timestamp"].between(1640995200, 1672531199).all():
+            raise ValueError("Invalid timestamp units in feature cache")
+        return f
     f = build_features(load_raw())
     FEATURES_PARQUET.parent.mkdir(parents=True, exist_ok=True)
     f.to_parquet(FEATURES_PARQUET, index=False)
+    FEATURES_PARQUET.with_suffix(".meta.json").write_text(json.dumps({
+        "feature_version": FEATURE_VERSION, "rows": len(f),
+        "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "raw_sha256": raw_hash(),
+        "timestamp_unit": "seconds", "same_timestamp_order": "stable raw-file transaction order",
+        "account_history_counts": "prior directional events; self-transfers add two events after both snapshots",
+    }, indent=2), encoding="utf-8")
     return f
 
 
 def temporal_split(f):
-    """Rows are already sorted by time -> cut by position (60/20/20)."""
+    """Approximate 60/20/20 splits, moving cuts left to keep timestamp groups intact."""
     n = len(f)
-    a, b = int(n * SPLIT[0]), int(n * (SPLIT[0] + SPLIT[1]))
+    times = f["timestamp"].to_numpy()
+    if n < 3 or np.any(times[1:] < times[:-1]):
+        raise ValueError("Features must contain at least three rows sorted by timestamp")
+    a = int(np.searchsorted(times, times[int(n * SPLIT[0])], side="left"))
+    b = int(np.searchsorted(times, times[int(n * (SPLIT[0] + SPLIT[1]))], side="left"))
+    if not 0 < a < b < n:
+        raise ValueError("Not enough distinct timestamps for nonempty temporal splits")
     feat_cols = [c for c in f.columns if c not in (LABEL, "timestamp")]
     parts = {}
     for name, sl in (("train", slice(0, a)), ("val", slice(a, b)), ("test", slice(b, n))):

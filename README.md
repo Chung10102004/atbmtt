@@ -1,143 +1,116 @@
-# Phát hiện rửa tiền bằng học máy – IBM AML (HI-Small)
+# Phát hiện giao dịch rửa tiền bằng học máy
 
-Đề tài môn An toàn và bảo mật hệ thống thông tin. Câu hỏi nghiên cứu: **làm giàu dữ liệu train bằng LLM (ChatGPT API) có giúp mô hình phát hiện rửa tiền tốt hơn không, và có tốt hơn các cách tăng cường truyền thống (SMOTE, CTGAN) không?**
+Đồ án môn **An toàn và bảo mật hệ thống thông tin**, chương trình thạc sĩ.
+Nghiên cứu ảnh hưởng của đặc trưng lịch sử, hoạt động theo thời gian và quan hệ tài khoản
+đến XGBoost trên **IBM AML HI-Small**.
 
-## 1. Đã làm gì
+## Báo cáo và số liệu
 
-| Bước | Trạng thái | File |
-|---|---|---|
-| Tải dữ liệu IBM AML HI-Small | ✅ | `data/raw/HI-Small_Trans.csv` |
-| Trích xuất 28 đặc trưng, chia train/val/test theo thời gian | ✅ | `src/data.py` |
-| E0 – baseline XGBoost (đã chạy, xem mục 5) | ✅ | `src/model.py`, `run_experiments.py` |
-| E1 – tăng cường bằng SMOTE (SMOTENC) | ✅ | `src/augment.py` |
-| E2 – tăng cường bằng CTGAN | ✅ | `src/augment.py` |
-| Đo chất lượng dữ liệu sinh (KS, bộ phân loại thật/giả) | ✅ | `src/augment.py` |
-| Chạy trên Kaggle GPU qua Kaggle CLI | ✅ | `kaggle/build_kernel.py` |
-| E3 – tăng cường bằng LLM (ChatGPT API) | 🟡 Code đã sẵn sàng, **chỉ cần điền API key** | `llm_config.py`, `src/llm_gen.py`, `generate_llm_data.py`, `run_llm.sh` |
+- [Báo cáo PDF — 14 trang](reports/bao_cao_atbmhttt.pdf).
+- [Bản Word chỉnh sửa](reports/bao_cao_atbmhttt.docx) và [bản Markdown](reports/bao_cao_atbmhttt.md).
+- [Phương pháp và định nghĩa đặc trưng](docs/feature-study-method.md).
+- [Bằng chứng số liệu](reports/evidence/feature_study/) và [biểu đồ PDF](reports/assets/feature_ablation.pdf).
 
-## 2. Dữ liệu
-[IBM Transactions for AML](https://www.kaggle.com/datasets/ealtman2019/ibm-transactions-for-anti-money-laundering-aml), file `HI-Small_Trans.csv`: 5.078.345 giao dịch tổng hợp (01–18/09/2022), 5.177 giao dịch rửa tiền (~0,1%).
+## Kết quả chính
 
-Chia **theo thời gian** 60/20/20, không xáo trộn, để mô phỏng thực tế (train trên quá khứ, dự đoán tương lai) và tránh rò rỉ dữ liệu:
+Thực nghiệm ngày **29/10/2026**: năm cấu hình × ba seed 0/1/2, cùng XGBoost và cách chia dữ liệu;
+không augmentation hoặc tìm siêu tham số. AP là Average Precision, lưu dưới tên `pr_auc` trong CSV.
 
-| Tập | Giai đoạn | Số giao dịch | Rửa tiền | Tỷ lệ |
-|---|---|---|---|---|
-| train | 01/09 → 06/09 13:36 | 3.047.007 | 2.298 | 0,075% |
-| val | → 08/09 16:12 | 1.015.669 | 1.082 | 0,107% |
-| test | → 18/09 | 1.015.669 | 1.797 | 0,177% |
+| Cấu hình | Số đặc trưng | AP, mean ± sample SD | Precision@1000 | Recall@1000 |
+|---|---:|---:|---:|---:|
+| F0 — giao dịch | 11 | 0.1708 ± 0.0021 | 0.3183 | 0.1770 |
+| F1 — thêm lịch sử | 28 | 0.5339 ± 0.0369 | 0.7117 | 0.3958 |
+| F2 — lịch sử + hoạt động | 48 | 0.6617 ± 0.0204 | 0.8933 | 0.4968 |
+| F3 — lịch sử + quan hệ | 43 | 0.6104 ± 0.0137 | 0.7983 | 0.4440 |
+| F4 — kết hợp | 63 | **0.6841 ± 0.0247** | **0.9150** | **0.5089** |
 
-## 3. Đặc trưng (28 cột, `src/data.py`)
-- **Bản thân giao dịch (11):** log số tiền gửi/nhận, giờ, thứ, hình thức thanh toán, loại tiền gửi/nhận, cùng ngân hàng, tự chuyển cho chính mình, có đổi tiền tệ, số tiền tròn trăm.
-- **Lịch sử tài khoản (16):** tính cho cả bên gửi (`src_`) và bên nhận (`dst_`) gồm số giao dịch vào/ra trước đó, số tiền trung bình vào/ra, số giây từ giao dịch trước, số giao dịch cùng ngày. Đây là đặc trưng **nhân quả**: chỉ dùng các giao dịch xảy ra *trước* giao dịch hiện tại, nên không nhìn trộm tương lai.
-- **Cặp tài khoản (1):** số lần A→B đã giao dịch trước đó.
+![AP và Recall@1000 qua ba seed](reports/assets/feature_ablation.png)
 
-## 4. Thiết kế thí nghiệm
-Giữ cố định:
-- val/test là **dữ liệu thật, không bao giờ tăng cường**;
-- cùng mô hình XGBoost với siêu tham số cố định: `lr=0.05, max_depth=8, subsample=0.8, colsample=0.8`, early stopping theo PR-AUC trên val;
-- ngưỡng phân loại chọn trên val (max F1) rồi áp dụng nguyên cho test;
-- 3 seed (0, 1, 2), báo cáo trung bình ± độ lệch chuẩn.
+Trong 1.000 cảnh báo cao nhất trên toàn test, F4 tìm được trung bình 915 nhãn dương so với khoảng 712 của F1.
+Nhóm hoạt động đem lại lợi ích lớn hơn nhóm quan hệ khi bổ sung riêng; kết hợp cải thiện tiếp trong cả ba seed.
 
-Chỉ thay đổi **tập train**:
+**Giới hạn:** dữ liệu mô phỏng; test đã dùng trong nghiên cứu trước; ba seed chỉ đo biến động huấn luyện.
+Lưu lượng và tỷ lệ nhãn thay đổi mạnh từ 11/09. Chẩn đoán hậu kiểm trên cùng phần test trước mốc này
+vẫn ghi nhận AP F1→F4 tăng 0.3330→0.5283. Không loại bỏ phần cuối để thay kết quả chính,
+không suy ra ý nghĩa thống kê hoặc hiệu quả tại ngân hàng thực tế.
 
-| Mã | Tập train | Cách sinh dữ liệu |
-|---|---|---|
-| E0 | gốc | – |
-| E1 | gốc + SMOTE | SMOTENC (k=5): nội suy giữa các giao dịch rửa tiền lân cận, cột phân loại lấy mode |
-| E2 | gốc + CTGAN | GAN có điều kiện cho dữ liệu bảng, 300 epoch, chỉ học trên giao dịch rửa tiền |
-| E3 | gốc + LLM | ChatGPT sinh giao dịch rửa tiền mới từ ví dụ thật, thống kê và mô tả các kiểu rửa tiền |
+## Dữ liệu và quy tắc thời gian
 
-Số mẫu sinh thêm = `ratio × 2.298` (mặc định `ratio=1.0`, tức nhân đôi số mẫu rửa tiền). Cả 3 phương pháp đều sinh **trong cùng không gian đặc trưng** để so sánh công bằng.
+Tải [IBM Transactions for AML](https://www.kaggle.com/datasets/ealtman2019/ibm-transactions-for-anti-money-laundering-aml),
+đặt `HI-Small_Trans.csv` tại `data/raw/`. Dữ liệu thô và dự đoán từng giao dịch không được đưa vào Git.
 
-**Metric** (lớp rửa tiền): PR-AUC (chính, phù hợp dữ liệu mất cân bằng), ROC-AUC, F1, Precision, Recall, Recall@FPR=1% (bắt được bao nhiêu % ca rửa tiền nếu chỉ chấp nhận 1% cảnh báo sai).
+- Tổng: 5.078.345 giao dịch, 5.177 nhãn dương.
+- Train: 3.046.861 / 2.297 dương; validation: 1.015.602 / 1.082; test: 1.015.882 / 1.798.
+- Chia thời gian xấp xỉ 60/20/20; không chia một timestamp sang hai tập.
+- Lịch sử chỉ dùng `t_j < t`; các dòng cùng phút dùng chung lịch sử. Cửa sổ `[t−1h,t)` và `[t−24h,t)`.
+- Các tổng tiền mới tính riêng tiền tệ, dùng số tiền nhận cho bên nhận; không giả định thêm tỷ giá/KYC.
+- ID tài khoản chỉ là khóa tra cứu. Nhãn không tham gia tính đặc trưng; ngưỡng chọn trên validation.
 
-**Chất lượng dữ liệu sinh:**
-- `ks_mean`: thống kê KS trung bình theo cột giữa dữ liệu sinh và dữ liệu rửa tiền thật, 0 nghĩa là phân phối giống hệt.
-- `disc_auc`: AUC của một bộ XGBoost phân biệt thật và giả, 0,5 nghĩa là không phân biệt được (tốt), 1,0 nghĩa là dễ dàng phân biệt (kém).
+Phiên bản chính: `strict-time-feature-study-v1`. Hash, cột, thư viện và tham số nằm trong
+[manifest](reports/evidence/feature_study/manifest.json). [Kết quả xác minh](reports/evidence/feature_study/verification.json)
+ghi nhận 15 lượt và 30 file dự đoán đã được kiểm tra độc lập.
 
-## 5. Kết quả E0–E2
-Chạy trên Kaggle GPU, 3 seed, `ratio=1.0` (+2.298 mẫu rửa tiền tổng hợp). Kết quả trên tập **test thật** (1.797 ca rửa tiền / 1.015.669 giao dịch). Dữ liệu gốc: `results/kaggle/results/results.csv`.
+## Chạy lại
 
-| Thí nghiệm | PR-AUC | ROC-AUC | F1 | Precision | Recall | Recall@FPR1% | ks_mean ↓ | disc_auc ↓ |
-|---|---|---|---|---|---|---|---|---|
-| **E0** gốc | **0,668 ± 0,005** | **0,988 ± 0,000** | **0,671 ± 0,009** | 0,776 ± 0,035 | 0,591 ± 0,012 | **0,838 ± 0,002** | – | – |
-| E1 + SMOTE | 0,654 ± 0,016 | 0,987 ± 0,002 | 0,657 ± 0,015 | **0,845 ± 0,037** | 0,538 ± 0,026 | 0,827 ± 0,003 | 0,068 | 0,995 |
-| E2 + CTGAN | 0,484 ± 0,130 | 0,983 ± 0,001 | 0,512 ± 0,093 | 0,455 ± 0,149 | **0,608 ± 0,003** | 0,803 ± 0,012 | 0,232 | 1,000 |
+Sử dụng Python 3.11–3.13 và môi trường ảo:
 
-**Nhận xét:**
-- **Không phương pháp tăng cường truyền thống nào cải thiện được baseline.** E0 có PR-AUC, F1 và Recall@FPR1% tốt nhất.
-- **SMOTE (E1)** gần như không đổi về PR-AUC (−0,014, nằm trong khoảng dao động giữa các seed), nhưng làm mô hình "thận trọng" hơn: Precision tăng, Recall giảm. Dữ liệu SMOTE giống dữ liệu thật theo từng cột (KS 0,07), nhưng gần như phân biệt được hoàn toàn khi xét **kết hợp** các cột (disc_auc 0,995). Lý do là nội suy tuyến tính phá vỡ quan hệ giữa các đặc trưng, ví dụ đặc trưng đếm bị ra số lẻ.
-- **CTGAN (E2)** làm mô hình kém đi rõ rệt và rất không ổn định (PR-AUC 0,41–0,63 tùy seed). Với chỉ 2.298 mẫu để học, GAN không mô phỏng được phân phối: KS 0,23, disc_auc 1,0. Precision giảm mạnh, tức mô hình học theo các mẫu giả không giống thật nên gắn cờ sai nhiều hơn. Ngoài ra `best_iter` ≈ 1000 (chạm trần), cho thấy mô hình mất nhiều vòng để "học thuộc" các mẫu giả.
-- **Hàm ý cho E3:** để LLM có ích, dữ liệu nó sinh ra phải tốt hơn đáng kể về `disc_auc`/KS so với SMOTE và CTGAN. Đây là chỉ số cần theo dõi đầu tiên khi có dữ liệu LLM.
-
-## 6. E3 – LLM (ChatGPT API)
-
-### Cách hoạt động (`src/llm_gen.py`)
-Mỗi lần gọi API:
-1. Lấy ngẫu nhiên 20 giao dịch rửa tiền **thật** trong tập train làm ví dụ few-shot.
-2. Prompt gồm mô tả 28 cột (kèm bảng mã hình thức thanh toán/tiền tệ), thống kê của lớp rửa tiền (p5/median/p95, tỷ lệ null, phân bố các cột phân loại), 7 kiểu rửa tiền của bộ IBM (fan-out, fan-in, cycle, scatter-gather, gather-scatter, bipartite/stack, random), và các ràng buộc logic (ví dụ `prev_n = prev_out + prev_in`).
-3. Yêu cầu sinh **25 giao dịch mới** dạng JSON (`response_format=json_object`), mỗi dòng ghi kèm `typology` để phân tích sau.
-4. Hậu xử lý:
-   - bỏ dòng thiếu cột hoặc sai kiểu;
-   - sửa các ràng buộc tất định (cross_currency, prev_n…);
-   - bỏ dòng trùng lặp;
-   - **bỏ dòng sao chép y nguyên dữ liệu thật** (kiểm tra mô hình có "học thuộc" không);
-   - cắt giá trị về đúng miền của dữ liệu thật.
-
-Dữ liệu được sinh **một lần** rồi lưu vào `data/llm/llm_seed{0,1,2}.csv`. Khi train, E3 chỉ đọc file này. Nhờ vậy có thể tái lập kết quả, không tốn API mỗi lần chạy, và API key không bao giờ bị đẩy lên Kaggle.
-
-Với mỗi seed còn lưu:
-- `llm_seed{s}_meta.json`: model, số lần gọi, số token, số dòng lỗi hoặc sao chép, phân bố typology;
-- `sample_prompt_seed{s}.txt` và `sample_response_seed{s}.json`: prompt và phản hồi mẫu để đưa vào báo cáo.
-
-Chi phí ước tính cho mỗi seed: khoảng 92 lần gọi × (~4,5k token vào + ~9k token ra). Với `gpt-4o-mini` chi phí rất nhỏ (cỡ vài chục cent cho cả 3 seed).
-
-### Cách chạy
-1. `cp llm_config.example.py llm_config.py` (nếu chưa có), rồi mở `llm_config.py`, điền key vào dòng `OPENAI_API_KEY = ""` (hoặc `export OPENAI_API_KEY=...`). Có thể đổi model qua `OPENAI_MODEL`.
-2. Xem trước prompt (không gọi API, không tốn tiền):
-   ```bash
-   .venv/bin/python generate_llm_data.py --dry-run
-   ```
-3. Sinh dữ liệu và benchmark:
-   ```bash
-   ./run_llm.sh          # sinh dữ liệu local → chạy lại E0–E3 trên Kaggle GPU (khuyên dùng)
-   ./run_llm.sh local    # sinh dữ liệu + chạy E3 ngay trên máy (cần ~16GB RAM)
-   SEEDS="0" RATIO=0.5 ./run_llm.sh   # thử nhanh với 1 seed, 0,5× dữ liệu
-   ```
-
-⚠️ `llm_config.py` chứa API key: **không commit, không gửi cho người khác** (đã có trong `.gitignore`).
-
-## 7. Chạy lại E0–E2
-```bash
-python3 -m venv .venv
-.venv/bin/pip install pandas pyarrow scikit-learn xgboost imbalanced-learn ctgan tabulate kaggle openai
-
-# Local (cần ~16GB RAM)
-.venv/bin/python run_experiments.py --exps E0 E1 E2 --seeds 0 1 2 --ratio 1.0
-
-# Kaggle (GPU, 30GB RAM) – dùng Kaggle CLI, cần ~/.kaggle token
-.venv/bin/python kaggle/build_kernel.py --args "--exps E0 E1 E2 --seeds 0 1 2 --ratio 1.0"
-.venv/bin/kaggle kernels push -p kaggle/kernel
-.venv/bin/kaggle kernels status hoangducchung/aml-baseline-e0-e2
-.venv/bin/kaggle kernels output hoangducchung/aml-baseline-e0-e2 -p results/kaggle
-```
-Kết quả: `results.csv` (từng lần chạy) và `summary.md` (trung bình ± độ lệch chuẩn).
-
-## 8. Cấu trúc thư mục
-```
-llm_config.py          # cấu hình ChatGPT API (ĐIỀN KEY Ở ĐÂY)
-generate_llm_data.py   # gọi API, sinh dữ liệu E3 → data/llm/
-run_llm.sh             # chạy toàn bộ E3 (sinh dữ liệu + benchmark)
-run_experiments.py     # chạy E0–E3, ghi results/
-src/data.py            # đọc dữ liệu, đặc trưng, chia theo thời gian
-src/augment.py         # SMOTE, CTGAN, LLM (đọc cache), đo chất lượng dữ liệu sinh
-src/llm_gen.py         # prompt, gọi API, kiểm tra/làm sạch dữ liệu LLM sinh
-src/model.py           # XGBoost + metric
-kaggle/build_kernel.py # đóng gói code thành kernel Kaggle
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -B -m unittest discover -s tests
+# CPU cục bộ; có thể đặt AML_DEVICE=cuda nếu môi trường hỗ trợ GPU.
+.\.venv\Scripts\python.exe -B run_feature_study.py --output-dir results/feature_study_local
 ```
 
-## 9. Việc tiếp theo (gợi ý)
-- **Ablation tỷ lệ sinh:** `--ratio 0.25 0.5 1 2`, vẽ PR-AUC theo tỷ lệ cho E1/E2/E3.
-- **E4 – TSTR:** train chỉ trên dữ liệu sinh, test trên dữ liệu thật.
-- **Phân tích theo typology:** dùng cột `typology` của dữ liệu LLM.
-- **SHAP:** đặc trưng nào quan trọng, và có thay đổi sau khi tăng cường không.
+Chạy GPU trên notebook Kaggle **riêng tư**:
+
+```powershell
+.\.venv\Scripts\python.exe -B kaggle/build_feature_kernel.py --owner YOUR_KAGGLE_USERNAME
+.\.venv\Scripts\python.exe -B kaggle/run_cli.py kernels push -p kaggle/kernel_features --accelerator NvidiaTeslaT4 --timeout 10800
+.\.venv\Scripts\python.exe -B kaggle/run_cli.py kernels output YOUR_KAGGLE_USERNAME/aml-feature-study-20261029 -p results/feature_study_kaggle --file-pattern '^results/' --quiet
+.\.venv\Scripts\python.exe -B analyze_feature_study.py --result-dir results/feature_study_kaggle/results/feature_study_20261029 --output-dir results/feature_study_analysis --submission kaggle/kernel_features/kernel.py
+```
+
+Notebook đã chạy: [snnasnguyen/aml-feature-study-20261029](https://www.kaggle.com/code/snnasnguyen/aml-feature-study-20261029).
+Notebook là riêng tư; người khác cần tự chạy hoặc được cấp quyền phù hợp. Bundle chỉ chứa file trong allowlist.
+
+Xuất lại Word/PDF từ Markdown và số liệu tổng hợp đã commit:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-report.txt
+.\.venv\Scripts\python.exe -B scripts/export_report.py
+```
+
+Muốn tính lại AP từ dự đoán cần output Kaggle hoặc chạy lại. Bản clone chỉ kèm số liệu tổng hợp,
+không chứa dữ liệu thô, cache và 30 file dự đoán lớn.
+
+## Mã nguồn
+
+| File | Vai trò |
+|---|---|
+| `src/feature_study.py` | 63 đặc trưng; snapshot cùng phút; cửa sổ/tiền tệ/quan hệ |
+| `src/data.py` | Đọc dữ liệu và chia tập không giao timestamp |
+| `src/model.py` | XGBoost, ngưỡng validation và chỉ số |
+| `run_feature_study.py` | Năm cấu hình × ba seed, manifest và dự đoán |
+| `analyze_feature_study.py` | Xác minh, phân rã nhóm, chẩn đoán và biểu đồ |
+| `kaggle/build_feature_kernel.py` | Bundle riêng tư, dependency pinning và GPU |
+| `scripts/export_report.py` | Báo cáo Word/PDF tiếng Việt |
+| `tests/` | 43 kiểm tra hồi quy của pipeline |
+
+## Thí nghiệm augmentation mở rộng
+
+Pipeline trước thử E0, lặp mẫu, SMOTENC, CTGAN và hai prompt LLM, tỷ lệ bổ sung 0,5.
+Số liệu được giữ ở [reports/evidence/augmentation/](reports/evidence/augmentation/).
+LLM chưa cải thiện AP trong cấu hình đó. Baseline cũ `causal-seconds-v3` cho phép thứ tự dòng trong cùng phút,
+khác protocol chính; không so trực tiếp AP hai đợt.
+
+Mã tái lập: `run_experiments.py`, `generate_llm_rerun.py`, `analyze_results.py`, `kaggle/build_kernel.py`.
+Nghiên cứu đặc trưng chính không gọi API LLM. Khi chạy augmentation LLM, giữ ledger ngân sách và
+kiểm tra cache identity; không xóa ledger để chạy lại cùng đợt.
+
+## Cấu hình riêng tư
+
+`.env`, `llm_config.py`, `.kaggle/`, token, dữ liệu và cache được Git bỏ qua. Tự cấu hình xác thực Kaggle
+cục bộ; `kaggle/run_cli.py` đọc `.env` mà không in token. Khi cần API LLM cho nghiên cứu mở rộng,
+sao chép `llm_config.example.py` thành `llm_config.py` rồi cấu hình riêng trên máy.
+Repository chỉ chứa file mẫu không có khóa; không đưa khóa API/token vào mã, báo cáo hoặc notebook.
