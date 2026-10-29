@@ -1,0 +1,8 @@
+{
+  "verified_runs": 15,
+  "verified_prediction_files": 30,
+  "identical_split_labels": true,
+  "validation_thresholds_verified": true,
+  "submission_sources_verified": true,
+  "raw_sha256": "b19d39f515523373f991b689c07e11e7b0b95c17a2c27a87d91584ae16c5b040"
+}

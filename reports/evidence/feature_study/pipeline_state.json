@@ -1,0 +1,13 @@
+{
+  "kernel": "snnasnguyen/aml-feature-study-20261029",
+  "submitted": true,
+  "complete": true,
+  "kernel_status": "COMPLETE",
+  "verified_runs": 15,
+  "verified_prediction_files": 30,
+  "tests_passed": 43,
+  "local_raw_hash_matches": true,
+  "source_snapshot_verified": true,
+  "paid_api_calls": 0,
+  "report": "results/feature_study_analysis/report_vi.md"
+}

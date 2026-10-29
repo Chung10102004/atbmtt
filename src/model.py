@@ -29,10 +29,22 @@ def recall_at_fpr(y, p, fpr_target=0.01):
     return float(np.interp(fpr_target, fpr, tpr))
 
 
-def evaluate(model, X_val, y_val, X_test, y_test):
+def alert_budget_metrics(y, p, k=1000):
+    k = min(k, len(y))
+    if k < 1:
+        raise ValueError("Alert budget and evaluation set must be nonempty")
+    top = np.argsort(-np.asarray(p), kind="stable")[:k]
+    tp = int(np.asarray(y)[top].sum())
+    return {f"precision_at_{k}": tp / k,
+            f"recall_at_{k}": tp / max(1, int(np.asarray(y).sum()))}
+
+
+def evaluate(model, X_val, y_val, X_test, y_test, prediction_path=None):
     """The threshold is chosen on val (max F1) and then applied to test - never tuned on test."""
     thr = best_f1_threshold(y_val, model.predict_proba(X_val)[:, 1])
     p = model.predict_proba(X_test)[:, 1]
+    if prediction_path is not None:
+        np.savez_compressed(prediction_path, y=y_test, p=p, threshold=thr)
     pred = (p >= thr).astype(int)
     return {
         "pr_auc": average_precision_score(y_test, p),
@@ -43,4 +55,5 @@ def evaluate(model, X_val, y_val, X_test, y_test):
         "recall_at_fpr1": recall_at_fpr(y_test, p),
         "threshold": thr,
         "best_iter": model.best_iteration,
+        **alert_budget_metrics(y_test, p),
     }

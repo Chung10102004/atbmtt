@@ -1,0 +1,4 @@
+# Optional: generate the editable Word report and standalone PDF.
+python-docx==1.2.0
+reportlab==5.1.0
+pypdf==6.21.4
