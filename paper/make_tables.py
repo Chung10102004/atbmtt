@@ -1,9 +1,12 @@
-"""Generate LaTeX tables and number macros for paper/main.tex from the evidence CSVs in reports/evidence/.
+"""Generate LaTeX tables, number macros and figures for the paper from reports/evidence/.
 
     python paper/make_tables.py
 
-Numbers in the paper text come from generated/numbers.tex, so the text cannot drift from the CSVs.
+Writes generated/vi/ (main.tex, decimal comma) and generated/en/ (main_en.tex, decimal point), plus
+figures/feature_ablation.pdf and figures/daily_profile.pdf (English labels, shared by both versions).
+Numbers in the paper text come from generated/<lang>/numbers.tex, so the text cannot drift from the CSVs.
 """
+import os
 from pathlib import Path
 
 import numpy as np
@@ -11,37 +14,80 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 EVID = ROOT / "reports/evidence"
-OUT = Path(__file__).resolve().parent / "generated"
+HERE = Path(__file__).resolve().parent
+FIG = HERE / "figures"
 
-FEATURE_VI = {
-    "src_prev_in": "Số lượt nhận trước đó của bên gửi",
-    "dst_secs_since_prev": "Thời gian từ giao dịch gần nhất của bên nhận",
-    "src_log_amt_vs_out_mean": "Độ lệch số tiền so với lịch sử gửi (cùng tiền tệ)",
-    "pay_format": "Hình thức thanh toán",
-    "hour": "Giờ trong ngày",
-    "pair_prev_n": "Số giao dịch trước đó của cặp gửi$\\to$nhận",
-    "src_log_amt_vs_in_mean": "Độ lệch số tiền so với lịch sử nhận của bên gửi",
-    "dst_log_amt_vs_in_mean": "Độ lệch số tiền so với lịch sử nhận của bên nhận",
-    "src_log_in_sum_24h": "Log tổng tiền bên gửi đã nhận trong 24 giờ",
-    "src_prev_in_amt_mean": "Trung bình log số tiền bên gửi đã nhận",
+LABELS = {
+    "vi": {
+        "configs": {"F0": "F0 Transaction", "F1": "F1 +History", "F2": "F2 +Activity",
+                    "F3": "F3 +Relationship", "F4": "F4 Combined"},
+        "groups": {"raw": "Transaction", "history": "History", "activity": "Activity",
+                   "relationships": "Relationship"},
+        "aug": {"E0": "E0 No augmentation", "ER": "ER Random oversampling", "E1": "E1 SMOTENC",
+                "E2": "E2 CTGAN", "E3-basic": "E3a LLM, basic prompt", "E3-AML": "E3b LLM, AML-aware prompt"},
+        "features": {
+            "src_prev_in": "Số lượt nhận trước đó của sender",
+            "dst_secs_since_prev": "Thời gian từ giao dịch gần nhất của receiver",
+            "src_log_amt_vs_out_mean": "Độ lệch số tiền so với lịch sử gửi (cùng currency)",
+            "pay_format": "Payment format",
+            "hour": "Giờ trong ngày",
+            "pair_prev_n": "Số giao dịch trước đó của cặp sender$\\to$receiver",
+            "src_log_amt_vs_in_mean": "Độ lệch số tiền so với lịch sử nhận của sender",
+            "dst_log_amt_vs_in_mean": "Độ lệch số tiền so với lịch sử nhận của receiver",
+            "src_log_in_sum_24h": "Log tổng tiền sender đã nhận trong 24 giờ",
+            "src_prev_in_amt_mean": "Trung bình log số tiền sender đã nhận",
+        },
+        "decimal": "{,}",
+    },
+    "en": {
+        "configs": {"F0": "F0 Transaction", "F1": "F1 +History", "F2": "F2 +Activity",
+                    "F3": "F3 +Relationship", "F4": "F4 Combined"},
+        "groups": {"raw": "Transaction", "history": "History", "activity": "Activity",
+                   "relationships": "Relationship"},
+        "aug": {"E0": "E0 No augmentation", "ER": "ER Random oversampling", "E1": "E1 SMOTENC",
+                "E2": "E2 CTGAN", "E3-basic": "E3a LLM, basic prompt", "E3-AML": "E3b LLM, AML-aware prompt"},
+        "features": {
+            "src_prev_in": "Sender's number of previous incoming transfers",
+            "dst_secs_since_prev": "Receiver's time since its previous transaction",
+            "src_log_amt_vs_out_mean": "Amount deviation from sender's outgoing history (same currency)",
+            "pay_format": "Payment format",
+            "hour": "Hour of day",
+            "pair_prev_n": "Previous transactions of the sender$\\to$receiver pair",
+            "src_log_amt_vs_in_mean": "Amount deviation from sender's incoming history",
+            "dst_log_amt_vs_in_mean": "Amount deviation from receiver's incoming history",
+            "src_log_in_sum_24h": "Log of amount received by sender in 24 hours",
+            "src_prev_in_amt_mean": "Sender's mean log amount received",
+        },
+        "decimal": ".",
+    },
 }
-GROUP_VI = {"raw": "Giao dịch", "history": "Lịch sử", "activity": "Hoạt động", "relationships": "Quan hệ"}
+WORD = {"F0": "Zero", "F1": "One", "F2": "Two", "F3": "Three", "F4": "Four"}
 
 
-def num(x, d=3):
-    """Vietnamese decimal comma."""
-    if x is None or (isinstance(x, float) and np.isnan(x)):
-        return "--"
-    text = f"{x:.{d}f}".replace(".", "{,}")
-    return "$-$" + text[1:] if text.startswith("-") else text
+class Writer:
+    def __init__(self, lang):
+        self.lang, self.L = lang, LABELS[lang]
+        self.out = HERE / "generated" / lang
+        self.out.mkdir(parents=True, exist_ok=True)
+        self.macros = ["% Auto-generated by make_tables.py - do not edit\n"]
 
+    def num(self, x, d=3):
+        if x is None or (isinstance(x, float) and np.isnan(x)):
+            return "--"
+        text = f"{x:.{d}f}".replace(".", self.L["decimal"])
+        return "$-$" + text[1:] if text.startswith("-") else text
 
-def pm(m, s, d=3):
-    return f"{num(m, d)} $\\pm$ {num(s, d)}"
+    def pm(self, m, s, d=3):
+        return f"{self.num(m, d)} $\\pm$ {self.num(s, d)}"
 
+    def macro(self, name, value):
+        self.macros.append(f"\\newcommand{{\\{name}}}{{{value}}}\n")
 
-def macro(name, value):
-    return f"\\newcommand{{\\{name}}}{{{value}}}\n"
+    def table(self, name, rows):
+        (self.out / f"{name}.tex").write_text("\n".join(rows) + "\n\\bottomrule\n", encoding="utf-8")
+
+    def save_macros(self):
+        (self.out / "numbers.tex").write_text("".join(self.macros), encoding="utf-8")
 
 
 def bold_best(values, cells):
@@ -49,84 +95,120 @@ def bold_best(values, cells):
     return [f"\\textbf{{{c}}}" if np.isclose(v, best) else c for v, c in zip(values, cells)]
 
 
-def feature_study(macros):
+def feature_study(w):
     s = pd.read_csv(EVID / "feature_study/summary.csv", header=[0, 1], index_col=0)
-    names = {"F0": "F0 Giao dịch", "F1": "F1 +Lịch sử", "F2": "F2 +Hoạt động",
-             "F3": "F3 +Quan hệ", "F4": "F4 Kết hợp"}
     nfeat = {"F0": 11, "F1": 28, "F2": 48, "F3": 43, "F4": 63}
-    word = {"F0": "Zero", "F1": "One", "F2": "Two", "F3": "Three", "F4": "Four"}
     cols = ["pr_auc", "val_ap", "f1", "precision_at_1000", "recall_at_1000"]
     cells = {c: bold_best(s[(c, "mean")].to_numpy(),
-                          [pm(s.loc[e, (c, "mean")], s.loc[e, (c, "std")]) for e in s.index]) for c in cols}
-    rows = [f"{names[e]} & {nfeat[e]} & " + " & ".join(cells[c][i] for c in cols) + r" \\"
-            for i, e in enumerate(s.index)]
-    (OUT / "tab_features.tex").write_text("\n".join(rows) + "\n\\bottomrule\n")
+                          [w.pm(s.loc[e, (c, "mean")], s.loc[e, (c, "std")]) for e in s.index]) for c in cols}
+    w.table("tab_features", [f"{w.L['configs'][e]} & {nfeat[e]} & " + " & ".join(cells[c][i] for c in cols) + r" \\"
+                             for i, e in enumerate(s.index)])
     for e in s.index:
         for c, key in (("pr_auc", "AP"), ("val_ap", "Val"), ("f1", "Fone"), ("precision_at_1000", "Pk"),
                        ("recall_at_1000", "Rk")):
-            macros.append(macro(f"F{word[e]}{key}", num(s.loc[e, (c, "mean")])))
-        # number of true laundering transactions among the 1,000 alerts
-        macros.append(macro(f"F{word[e]}Hits", f"{s.loc[e, ('precision_at_1000', 'mean')] * 1000:.0f}"))
-    macros.append(macro("FFourPkPct", num(100 * s.loc["F4", ("precision_at_1000", "mean")], 2)))
-    macros.append(macro("FFourRkPct", num(100 * s.loc["F4", ("recall_at_1000", "mean")], 2)))
+            w.macro(f"F{WORD[e]}{key}", w.num(s.loc[e, (c, "mean")]))
+        w.macro(f"F{WORD[e]}Hits", f"{s.loc[e, ('precision_at_1000', 'mean')] * 1000:.0f}")
+    w.macro("FFourPkPct", w.num(100 * s.loc["F4", ("precision_at_1000", "mean")], 2))
+    w.macro("FFourRkPct", w.num(100 * s.loc["F4", ("recall_at_1000", "mean")], 2))
 
     d = pd.read_csv(EVID / "feature_study/paired_differences.csv")
     g = d.groupby("comparison", sort=False)["delta_ap"]
-    rows = []
-    for c, m, sd in zip(g.mean().index, g.mean(), g.std()):
-        wins = int((d[d.comparison == c].delta_ap > 0).sum())
-        rows.append(f"{c.replace(' - ', ' $-$ ')} & +{num(m, 4)} & {num(sd, 4)} & {wins}/3 \\\\")
-    (OUT / "tab_feature_deltas.tex").write_text("\n".join(rows) + "\n\\bottomrule\n")
+    w.table("tab_feature_deltas", [
+        f"{c.replace(' - ', ' $-$ ')} & +{w.num(m, 4)} & {w.num(sd, 4)} & {int((d[d.comparison == c].delta_ap > 0).sum())}/3 \\\\"
+        for c, m, sd in zip(g.mean().index, g.mean(), g.std())])
 
     t = pd.read_csv(EVID / "feature_study/temporal_diagnostics_summary.csv", header=[0, 1], index_col=[0, 1])
     rows = []
     for e in ["F0", "F1", "F2", "F3", "F4"]:
         a, b = t.loc[(e, "before_2022-09-11")], t.loc[(e, "from_2022-09-11")]
-        rows.append(f"{e} & {pm(a[('ap', 'mean')], a[('ap', 'std')])} & {pm(b[('ap', 'mean')], b[('ap', 'std')])} \\\\")
-        macros.append(macro(f"F{word[e]}APpre", num(a[("ap", "mean")])))
-        macros.append(macro(f"F{word[e]}APpost", num(b[("ap", "mean")])))
-    (OUT / "tab_temporal.tex").write_text("\n".join(rows) + "\n\\bottomrule\n")
+        rows.append(f"{e} & {w.pm(a[('ap', 'mean')], a[('ap', 'std')])} & {w.pm(b[('ap', 'mean')], b[('ap', 'std')])} \\\\")
+        w.macro(f"F{WORD[e]}APpre", w.num(a[("ap", "mean")]))
+        w.macro(f"F{WORD[e]}APpost", w.num(b[("ap", "mean")]))
+    w.table("tab_temporal", rows)
 
 
-def importance(macros):
+def importance(w):
     imp = pd.read_csv(EVID / "feature_study/F4_feature_importance.csv").head(10)
     cat = pd.read_csv(EVID / "feature_study/feature_catalog.csv").set_index("feature")["family"]
-    rows = [f"{i + 1} & {FEATURE_VI[r.feature]} & {GROUP_VI[cat[r.feature]]} & {num(100 * r['mean'], 2)} \\\\"
-            for i, (_, r) in enumerate(imp.iterrows())]
-    (OUT / "tab_importance.tex").write_text("\n".join(rows) + "\n\\bottomrule\n")
+    w.table("tab_importance", [
+        f"{i + 1} & {w.L['features'][r.feature]} & {w.L['groups'][cat[r.feature]]} & {w.num(100 * r['mean'], 2)} \\\\"
+        for i, (_, r) in enumerate(imp.iterrows())])
 
 
-def augmentation(macros):
+def augmentation(w):
     m = pd.read_csv(EVID / "augmentation/metrics_mean_std.csv", header=[0, 1], index_col=0)
-    names = {"E0": "E0 Không tăng cường", "ER": "ER Lặp mẫu dương", "E1": "E1 SMOTENC", "E2": "E2 CTGAN",
-             "E3-basic": "E3a LLM, prompt cơ bản", "E3-AML": "E3b LLM, prompt có tri thức AML"}
-    rows = []
-    for e in m.index:
-        r = m.loc[e]
-        rows.append(f"{names[e]} & {pm(r[('pr_auc', 'mean')], r[('pr_auc', 'std')])} & "
-                    f"{pm(r[('f1', 'mean')], r[('f1', 'std')])} & {num(r[('precision_at_1000', 'mean')])} & "
-                    f"{num(r[('ks_mean', 'mean')])} & {num(r[('disc_auc', 'mean')])} \\\\")
-    (OUT / "tab_aug.tex").write_text("\n".join(rows) + "\n\\bottomrule\n")
+    w.table("tab_aug", [
+        f"{w.L['aug'][e]} & {w.pm(r[('pr_auc', 'mean')], r[('pr_auc', 'std')])} & "
+        f"{w.pm(r[('f1', 'mean')], r[('f1', 'std')])} & {w.num(r[('precision_at_1000', 'mean')])} & "
+        f"{w.num(r[('ks_mean', 'mean')])} & {w.num(r[('disc_auc', 'mean')])} \\\\" for e, r in m.iterrows()])
     key = {"E0": "EZero", "ER": "ER", "E1": "EOne", "E2": "ETwo", "E3-basic": "ELLMa", "E3-AML": "ELLMb"}
     for e in m.index:
-        macros.append(macro(f"{key[e]}AP", num(m.loc[e, ("pr_auc", "mean")])))
-        macros.append(macro(f"{key[e]}Fone", num(m.loc[e, ("f1", "mean")])))
+        w.macro(f"{key[e]}AP", w.num(m.loc[e, ("pr_auc", "mean")]))
+        w.macro(f"{key[e]}Fone", w.num(m.loc[e, ("f1", "mean")]))
         if e != "E0":
-            macros.append(macro(f"{key[e]}Disc", num(m.loc[e, ("disc_auc", "mean")])))
-            macros.append(macro(f"{key[e]}KS", num(m.loc[e, ("ks_mean", "mean")])))
+            w.macro(f"{key[e]}Disc", w.num(m.loc[e, ("disc_auc", "mean")]))
+            w.macro(f"{key[e]}KS", w.num(m.loc[e, ("ks_mean", "mean")]))
     d = pd.read_csv(EVID / "augmentation/paired_ap_differences.csv").set_index("exp")
     for e in d.index:
-        macros.append(macro(f"{key[e]}Delta", num(d.loc[e, "ap_delta_mean"], 4)))
+        w.macro(f"{key[e]}Delta", w.num(d.loc[e, "ap_delta_mean"], 4))
+
+
+def figures():
+    os.environ.setdefault("MPLCONFIGDIR", str(HERE / ".mplcache"))
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import PercentFormatter
+
+    plt.rcParams.update({"font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 6.5, "ytick.labelsize": 6.5,
+                         "legend.fontsize": 6.5, "pdf.fonttype": 42})
+    FIG.mkdir(parents=True, exist_ok=True)
+
+    # Daily profile: sized for one ACM column (3.33in), day-of-month ticks every 2 days so labels never overlap
+    daily = pd.read_csv(EVID / "feature_study/daily_data_profile.csv")
+    day = pd.to_datetime(daily.day, format="%Y/%m/%d").dt.day.to_numpy()
+    fig, axes = plt.subplots(2, 1, figsize=(3.35, 2.7), sharex=True, layout="constrained")
+    axes[0].bar(day, daily.transactions, color="#416c93", width=0.75)
+    axes[0].set_yscale("log")
+    axes[0].set_ylabel("Transactions\n(log scale)")
+    axes[1].plot(day, daily.positive_rate, marker="o", markersize=2.5, linewidth=1, color="#ae6830")
+    axes[1].yaxis.set_major_formatter(PercentFormatter(1, decimals=0))
+    axes[1].set_ylabel("Laundering rate")
+    for ax in axes:
+        ax.axvline(11, color="#a33d45", linestyle="--", linewidth=0.8, label="Sep 11")
+        ax.grid(axis="y", alpha=0.25, linewidth=0.5)
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].legend(frameon=False, loc="upper right")
+    axes[1].set_xticks(range(int(day.min()), int(day.max()) + 1, 2))
+    axes[1].set_xlim(day.min() - 0.7, day.max() + 0.7)
+    axes[1].set_xlabel("Day of September 2022")
+    fig.savefig(FIG / "daily_profile.pdf")
+    plt.close(fig)
+
+    # Feature ablation: AP and Recall@1000 with SD error bars
+    s = pd.read_csv(EVID / "feature_study/summary.csv", header=[0, 1], index_col=0)
+    colors = ["#9aa7b4", "#416c93", "#3e9b8c", "#c08a3e", "#7d5ba6"]
+    fig, axes = plt.subplots(1, 2, figsize=(3.35, 1.75), layout="constrained")
+    for ax, (col, title) in zip(axes, (("pr_auc", "Average Precision"), ("recall_at_1000", "Recall@1000"))):
+        ax.bar(s.index, s[(col, "mean")], yerr=s[(col, "std")], color=colors, capsize=2, width=0.7,
+               error_kw={"linewidth": 0.8})
+        ax.set_title(title, fontsize=7)
+        ax.set_ylim(0, 0.8)
+        ax.grid(axis="y", alpha=0.25, linewidth=0.5)
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.savefig(FIG / "feature_ablation.pdf")
+    plt.close(fig)
 
 
 def main():
-    OUT.mkdir(parents=True, exist_ok=True)
-    macros = ["% Auto-generated by make_tables.py - do not edit\n"]
-    feature_study(macros)
-    importance(macros)
-    augmentation(macros)
-    (OUT / "numbers.tex").write_text("".join(macros))
-    print("Wrote", sorted(p.name for p in OUT.iterdir()))
+    for lang in ("vi", "en"):
+        w = Writer(lang)
+        feature_study(w)
+        importance(w)
+        augmentation(w)
+        w.save_macros()
+    figures()
+    print("Wrote generated/vi, generated/en and figures/")
 
 
 if __name__ == "__main__":

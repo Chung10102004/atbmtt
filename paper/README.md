@@ -1,31 +1,31 @@
 # Bài báo (LaTeX, khuôn ACM `sigconf` giống arXiv 2402.08593)
 
-| Tệp | Nội dung |
+Hai bản cùng nội dung:
+
+| Bản | Mã nguồn | PDF |
+|---|---|---|
+| Tiếng Việt (thuật ngữ chuyên ngành giữ tiếng Anh) | `main.tex` | `main.pdf` |
+| Tiếng Anh | `main_en.tex` | `main_en.pdf` |
+
+| Tệp / thư mục | Nội dung |
 |---|---|
-| `main.tex` | Bài báo (tiếng Việt) |
-| `references.bib` | Tài liệu tham khảo |
-| `generated/` | Bảng và số liệu sinh tự động từ CSV kết quả (không sửa tay) |
-| `figures/` | Hình (PDF) |
-| `make_tables.py` | Sinh lại `generated/` và hình phân tích theo kiểu rửa tiền |
-| `main.pdf` | Bản PDF đã biên dịch |
+| `references.bib` | Tài liệu tham khảo (dùng chung) |
+| `generated/vi/`, `generated/en/` | Bảng và số liệu sinh tự động từ `reports/evidence/` (không sửa tay) |
+| `figures/` | Hình (PDF), sinh bởi `make_tables.py`, dùng chung cho hai bản |
+| `make_tables.py` | Sinh lại `generated/` và `figures/` |
 
 ## Biên dịch
 
-Bài dùng tiếng Việt nên phải biên dịch bằng **XeLaTeX** (hoặc LuaLaTeX), không dùng pdfLaTeX.
+Bản tiếng Việt phải biên dịch bằng **XeLaTeX** (hoặc LuaLaTeX); bản tiếng Anh dùng được cả pdfLaTeX.
 
-- **Overleaf:** tải cả thư mục `paper/` lên, chọn *Menu → Compiler → XeLaTeX*, rồi bấm Recompile.
-- **Máy cá nhân (TeX Live):**
-  ```bash
-  cd paper
-  latexmk -xelatex main.tex
-  # hoặc: xelatex main && bibtex main && xelatex main && xelatex main
-  ```
+- **Overleaf:** tải cả thư mục `paper/` lên, chọn *Menu → Compiler → XeLaTeX*, chọn tệp chính
+  (`main.tex` hoặc `main_en.tex`), rồi bấm Recompile.
+- **Máy cá nhân (TeX Live):** `latexmk -xelatex main.tex` và `latexmk -xelatex main_en.tex` trong thư mục `paper/`.
+- **Tectonic** (cách đã dùng để tạo PDF trong kho): `tectonic -X compile main.tex` và
+  `tectonic -X compile main_en.tex`.
 
-## Sinh lại bảng số liệu
+## Sinh lại bảng, số liệu và hình
 
 ```bash
-.venv/bin/python paper/make_tables.py   # đọc reports/evidence/, ghi paper/generated/
+.venv/bin/python paper/make_tables.py   # đọc reports/evidence/, ghi paper/generated/{vi,en} và paper/figures/
 ```
-
-Bản `main.pdf` trong kho được biên dịch bằng [Tectonic](https://tectonic-typesetting.github.io) 0.15
-(engine XeTeX, tự tải gói LaTeX): `tectonic -X compile main.tex` trong thư mục `paper/`.
