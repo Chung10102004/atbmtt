@@ -21,3 +21,5 @@ access_token
 *.key
 results/rerun*/
 results/feature_study*/
+kaggle/kernel_gfp/
+kaggle/kernel_gfp_v2/
