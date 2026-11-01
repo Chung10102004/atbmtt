@@ -1,0 +1,443 @@
+% Biên dịch bằng XeLaTeX (Overleaf: Menu -> Compiler -> XeLaTeX), sau đó BibTeX, rồi XeLaTeX hai lần.
+% Bảng và số liệu trong thư mục generated/ được sinh bởi make_tables.py từ reports/evidence/.
+\documentclass[sigconf,nonacm]{acmart}
+
+\usepackage[vietnamese]{babel}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+
+\input{generated/numbers.tex}
+
+\providecommand{\keywordsname}{Keywords}
+\addto\captionsvietnamese{\renewcommand{\abstractname}{Tóm tắt}\renewcommand{\keywordsname}{Từ khóa}}
+\settopmatter{printfolios=true}
+\setlength{\emergencystretch}{1.5em}
+
+\begin{document}
+
+\title{Đặc trưng hành vi theo thời gian hay dữ liệu tổng hợp?}
+\subtitle{Nghiên cứu thực nghiệm về phát hiện giao dịch rửa tiền trên dữ liệu IBM AML\\[2pt]
+\normalsize Đồ án môn học An toàn và Bảo mật Hệ thống Thông tin}
+
+\author{Nguyễn Thế Vĩnh}
+\authornote{Mã số học viên: 26848266.}
+\email{26848266@grad.uit.edu.vn}
+\affiliation{%
+  \institution{Trường Đại học Công nghệ Thông tin, ĐHQG-HCM}
+  \city{TP. Hồ Chí Minh}
+  \country{Việt Nam}}
+
+\author{Hoàng Đức Chung}
+\authornote{Mã số học viên: 26848014.}
+\email{26848014@grad.uit.edu.vn}
+\affiliation{%
+  \institution{Trường Đại học Công nghệ Thông tin, ĐHQG-HCM}
+  \city{TP. Hồ Chí Minh}
+  \country{Việt Nam}}
+
+\author{Nguyễn Hải Đăng}
+\authornote{Mã số học viên: 26848027.}
+\email{26848027@grad.uit.edu.vn}
+\affiliation{%
+  \institution{Trường Đại học Công nghệ Thông tin, ĐHQG-HCM}
+  \city{TP. Hồ Chí Minh}
+  \country{Việt Nam}}
+
+\renewcommand{\shortauthors}{Nguyễn Thế Vĩnh, Hoàng Đức Chung và Nguyễn Hải Đăng}
+
+\begin{abstract}
+Phát hiện giao dịch rửa tiền bằng học máy gặp hai trở ngại: lớp dương cực hiếm và tín hiệu nằm ở bối cảnh
+hành vi chứ không ở từng giao dịch đơn lẻ. Bài báo so sánh hai hướng cải thiện trong cùng một quy trình đánh
+giá trên 5.078.345 giao dịch của bộ dữ liệu mô phỏng IBM AML HI-Small: \emph{tăng lượng dữ liệu} lớp dương
+bằng lặp mẫu, SMOTENC, CTGAN và mô hình ngôn ngữ lớn (LLM), và \emph{cải thiện biểu diễn} bằng đặc trưng
+hành vi theo thời gian. Chúng tôi xây dựng 63 đặc trưng về lịch sử tài khoản, hoạt động theo cửa sổ và quan
+hệ đối tác, được tính nghiêm ngặt chỉ từ các giao dịch xảy ra trước thời điểm dự đoán, và giữ cố định bộ
+phân loại XGBoost. Bổ sung lần lượt các nhóm đặc trưng nâng Average Precision (AP) từ \FZeroAP{} lên
+\FOneAP{} và \FFourAP; với 1.000 cảnh báo có điểm cao nhất, cấu hình đầy đủ đạt precision \FFourPkPct\% và
+recall \FFourRkPct\%. Ngược lại, không phương pháp tăng cường dữ liệu nào cải thiện rõ rệt so với không tăng
+cường; hai biến thể LLM giảm AP từ \EZeroAP{} xuống \ELLMaAP{} và \ELLMbAP, và dữ liệu do CTGAN hoặc LLM sinh
+ra gần như bị phân biệt hoàn toàn với dữ liệu thật (disc-AUC $\geq$ \ELLMaDisc). Phân tích bổ sung phát
+hiện phân bố dữ liệu thay đổi mạnh từ ngày 11/09/2022; trên phần test trước mốc này, lợi ích của đặc trưng
+hành vi vẫn được duy trì. Kết quả cho thấy với dữ liệu giao dịch, chất lượng biểu diễn hành vi và tính đúng
+đắn theo thời gian của pipeline quan trọng hơn việc bổ sung dữ liệu tổng hợp.
+\end{abstract}
+
+\keywords{phát hiện rửa tiền, giám sát giao dịch, XGBoost, đặc trưng thời gian, quan hệ tài khoản,
+tăng cường dữ liệu, mô hình ngôn ngữ lớn, rò rỉ dữ liệu}
+
+\maketitle
+
+% ======================================================================
+\section{Giới thiệu}
+
+Rửa tiền là quá trình hợp thức hóa nguồn tiền bất hợp pháp thông qua chuỗi giao dịch nhằm che giấu nguồn
+gốc. Các tổ chức tài chính có nghĩa vụ giám sát giao dịch và báo cáo giao dịch đáng ngờ theo khuyến nghị của
+FATF~\cite{fatf2012} và, tại Việt Nam, theo Luật Phòng, chống rửa tiền 2022~\cite{luatpcrt2022}. Dưới góc
+nhìn an toàn hệ thống thông tin, hệ thống giám sát giao dịch đóng vai trò tương tự một hệ thống phát hiện xâm
+nhập: nó phải xếp hạng một luồng sự kiện rất lớn, trong đó chỉ một tỷ lệ nhỏ là độc hại, và mỗi cảnh báo sai
+đều tiêu tốn thời gian của chuyên viên điều tra.
+
+Phát hiện rửa tiền bằng học máy gặp ba khó khăn. Thứ nhất, lớp dương cực hiếm: trong bộ dữ liệu IBM AML
+HI-Small~\cite{altman2023realistic} chỉ khoảng 0,1\% giao dịch được gán nhãn rửa tiền. Thứ hai, một giao dịch
+đơn lẻ hầu như không mang tín hiệu; dấu hiệu nằm ở \emph{bối cảnh} như lịch sử tài khoản, nhịp độ giao dịch
+và mối quan hệ giữa các tài khoản. Thứ ba, dữ liệu có thứ tự thời gian, nên rất dễ vô tình để mô hình ``nhìn
+thấy tương lai'' khi xây dựng đặc trưng, dẫn tới kết quả lạc quan giả tạo.
+
+Có hai hướng phổ biến để cải thiện bộ phát hiện. Hướng thứ nhất \emph{tăng lượng dữ liệu} lớp dương bằng lấy
+mẫu lại, SMOTE~\cite{chawla2002smote}, mô hình sinh như CTGAN~\cite{xu2019ctgan}, hoặc gần đây là mô hình
+ngôn ngữ lớn (LLM)~\cite{borisov2023great,seedat2024cllm}. Hướng thứ hai \emph{cải thiện biểu diễn} bằng đặc
+trưng mô tả hành vi theo thời gian của tài khoản và quan hệ giữa các tài khoản~\cite{blanusa2024gfp,
+deprez2024network}. Bài báo này so sánh hai hướng trên trong cùng một quy trình: cùng cách chia dữ liệu theo
+thời gian, cùng bộ phân loại XGBoost~\cite{chen2016xgboost} với siêu tham số cố định, cùng cách chọn ngưỡng
+trên tập validation và ba seed. Các đóng góp chính gồm:
+
+\begin{itemize}
+  \item Một bộ 63 đặc trưng hành vi được tính \emph{nghiêm ngặt theo thời gian}: chỉ dùng giao dịch có thời
+  điểm nhỏ hơn thời điểm dự đoán, các giao dịch cùng phút dùng chung một ảnh chụp lịch sử, và tổng tiền được
+  tách theo tiền tệ.
+  \item Một phép phân rã có kiểm soát gồm năm cấu hình đặc trưng định trước, cho thấy AP tăng từ \FZeroAP{}
+  lên \FFourAP{} và mọi bước bổ sung đều cải thiện AP trong cả ba seed.
+  \item Đánh giá bốn phương pháp tăng cường dữ liệu, gồm hai biến thể sinh dữ liệu bằng LLM, kèm chẩn đoán
+  chất lượng dữ liệu sinh. Không phương pháp nào cải thiện rõ rệt; dữ liệu CTGAN và LLM gần như bị tách biệt
+  hoàn toàn khỏi dữ liệu thật.
+  \item Phân tích tính hợp lệ của phép đánh giá: chính sách thời gian, sự thay đổi phân bố từ ngày 11/09/2022
+  và việc tái sử dụng tập test, cùng quy trình xác minh kết quả có thể tái lập.
+\end{itemize}
+
+% ======================================================================
+\section{Công trình liên quan}
+
+\paragraph{Dữ liệu và benchmark} Do dữ liệu ngân hàng thật không thể công bố, nghiên cứu học thuật chủ yếu
+dùng dữ liệu công khai như đồ thị giao dịch Bitcoin Elliptic~\cite{weber2019elliptic} hoặc dữ liệu mô phỏng.
+Altman và cộng sự~\cite{altman2023realistic} công bố trình sinh AMLworld dựa trên mô phỏng tác nhân và sáu bộ
+dữ liệu giao dịch ngân hàng tổng hợp có nhãn đầy đủ~\cite{ibmamlkaggle}; HI-Small là bộ nhỏ nhất với tỷ lệ
+giao dịch rửa tiền cao hơn.
+
+\paragraph{Đặc trưng đồ thị và GNN} Graph Feature Preprocessor (GFP)~\cite{blanusa2024gfp}, thuộc thư viện
+Snap ML~\cite{dunner2018snapml}, trích xuất theo thời gian thực các mẫu fan-in/out, scatter-gather và chu
+trình, cùng thống kê đỉnh trong cửa sổ thời gian, rồi đưa vào mô hình gradient boosting; trên HI-Small cách
+làm này đạt F1 lớp dương khoảng 0,63--0,65 và vượt các GNN tiêu chuẩn. Multi-GNN~\cite{egressy2024multignn}
+mở rộng GNN cho đa đồ thị có hướng. Deprez và cộng sự~\cite{deprez2024network} tổng quan 97 công trình và cho
+thấy thông tin mạng lưới cải thiện khả năng dự đoán. Các công trình gần đây tập trung vào tốc độ khai phá
+mẫu~\cite{ye2026blazingaml} hoặc biểu diễn đồ thị gần-thời-gian~\cite{tariq2026exstraqt}. Ngược lại, Effendi
+và Chattopadhyay~\cite{effendi2024fhe} ghi nhận XGBoost có thể không cần đặc trưng đồ thị trong một số cấu
+hình dữ liệu. Bài báo này không tái hiện GFP mà tập trung vào các thống kê hành vi và quan hệ cục bộ có thể
+giải thích trực tiếp.
+
+\paragraph{Tăng cường dữ liệu và LLM} SMOTE~\cite{chawla2002smote} nội suy giữa các mẫu thiểu số;
+CTGAN~\cite{xu2019ctgan} học phân phối dữ liệu bảng bằng GAN có điều kiện. LLM được dùng để sinh dữ liệu
+bảng~\cite{borisov2023great}, kết hợp với lọc dữ liệu trong chế độ ít mẫu~\cite{seedat2024cllm}, hoặc để tự
+động đề xuất đặc trưng~\cite{hollmann2023caafe,abhyankar2025llmfe}. Chúng tôi đánh giá khả năng sinh giao
+dịch rửa tiền bằng LLM trong không gian đặc trưng cho bài toán cực kỳ mất cân bằng.
+
+% ======================================================================
+\section{Dữ liệu và bài toán}
+
+\paragraph{Bộ dữ liệu} Chúng tôi dùng tệp \texttt{HI-Small\_Trans.csv} của IBM AML~\cite{ibmamlkaggle} gồm
+5.078.345 giao dịch trong khoảng 01--18/09/2022, trong đó 5.177 giao dịch (0,102\%) được gán nhãn rửa tiền.
+Mỗi giao dịch có thời điểm (độ phân giải phút), ngân hàng và tài khoản gửi/nhận, số tiền và tiền tệ hai phía,
+hình thức thanh toán và nhãn. Tệp được đối chiếu bằng mã băm SHA-256 giữa môi trường cục bộ và Kaggle. Tài
+khoản được định danh bằng cặp ngân hàng--mã tài khoản; định danh chỉ dùng để tra cứu lịch sử, không đưa vào mô
+hình.
+
+\paragraph{Bài toán} Mỗi giao dịch là một mẫu. Mô hình trả về điểm nghi ngờ để xếp hạng; quyết định nhị phân
+dùng ngưỡng chọn trên validation. Điểm không được hiệu chuẩn thành xác suất rủi ro.
+
+\paragraph{Chia dữ liệu theo thời gian} Dữ liệu được sắp xếp theo thời điểm và chia xấp xỉ 60/20/20; mốc cắt
+được dịch về đầu nhóm giao dịch cùng phút để một phút không bị tách sang hai tập (Bảng~\ref{tab:split}).
+Không xáo trộn dữ liệu; nhãn của validation và test không tham gia xây dựng đặc trưng hay huấn luyện.
+
+\begin{table}[t]
+\caption{Chia dữ liệu theo thời gian.}
+\label{tab:split}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrl}
+\toprule
+Tập & Giao dịch & Rửa tiền & Tỷ lệ & Khoảng thời gian \\
+\midrule
+Train & 3.046.861 & 2.297 & 0,075\% & 01/09 -- 06/09 13:35 \\
+Validation & 1.015.602 & 1.082 & 0,107\% & 06/09 13:36 -- 08/09 16:11 \\
+Test & 1.015.882 & 1.798 & 0,177\% & 08/09 16:12 -- 18/09 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ======================================================================
+\section{Phương pháp}
+
+\subsection{Chính sách thời gian}
+
+Gọi $t$ là thời điểm của giao dịch cần dự đoán. Tập lịch sử được phép quan sát là
+\begin{equation}
+H(t) = \{\, j : t_j < t \,\}.
+\end{equation}
+Vì dữ liệu chỉ chính xác đến phút và thứ tự thật trong cùng phút là không biết, mọi giao dịch cùng thời điểm
+dùng chung một ảnh chụp lịch sử; lịch sử chỉ được cập nhật sau khi cả nhóm đã được truy vấn. Nhờ vậy đặc trưng
+không phụ thuộc thứ tự dòng trong tệp. Giao dịch tự chuyển tạo một sự kiện gửi và một sự kiện nhận, và sự kiện
+gửi của chính giao dịch không trở thành lịch sử của phía nhận. Cửa sổ độ dài $W$ được định nghĩa là
+$[t-W, t)$. Các giao dịch không nhãn đã xảy ra trong validation và test được phép bổ sung lịch sử cho giao
+dịch đến sau, tương ứng với việc quan sát luồng giao dịch theo thời gian.
+
+\subsection{Đặc trưng hành vi}
+
+Bộ đặc trưng gồm bốn nhóm, tổng cộng 63 cột:
+\begin{itemize}
+  \item \textbf{Giao dịch (11):} log số tiền gửi/nhận, giờ, thứ, hình thức thanh toán, tiền tệ hai phía, cùng
+  ngân hàng, tự chuyển, đổi tiền tệ, số tiền tròn trăm.
+  \item \textbf{Lịch sử (17):} với mỗi tài khoản gửi và nhận: số giao dịch trước đó, số lượt gửi và nhận,
+  trung bình log số tiền gửi và nhận, thời gian từ giao dịch gần nhất, số giao dịch cùng ngày tổng và theo
+  hướng; thêm số giao dịch trước đó của cặp gửi$\to$nhận.
+  \item \textbf{Hoạt động (20):} với cửa sổ 1 giờ và 24 giờ, số lượt và log tổng tiền theo hướng của mỗi tài
+  khoản, cùng độ lệch giữa log số tiền hiện tại và trung bình log lịch sử cùng hướng. Tổng tiền và độ lệch
+  được tính riêng theo tài khoản \emph{và tiền tệ}, không cộng các đồng tiền khác nhau khi không có tỷ giá.
+  Tổng trượt dùng phép cộng bù sai số Neumaier để không để lại sai số khi các khoản tiền chênh lệch rất lớn
+  rời khỏi cửa sổ.
+  \item \textbf{Quan hệ (15):} số đối tác duy nhất theo hướng và cửa sổ, số giao dịch lịch sử của cặp đảo
+  chiều, tuổi và độ gần của quan hệ gửi$\to$nhận, số giao dịch của cặp trong cửa sổ, và tỷ trọng đối tác trong
+  24 giờ (số giao dịch A$\to$B chia số lượt gửi của A).
+\end{itemize}
+Khi không có lịch sử, số đếm và tổng bằng 0, còn trung bình và khoảng thời gian để trống (NaN) cho XGBoost tự
+xử lý. Năm cấu hình được xác định trước khi chạy: F0 = giao dịch; F1 = F0 + lịch sử; F2 = F1 + hoạt động;
+F3 = F1 + quan hệ; F4 = F1 + hoạt động + quan hệ. Hiệu số F1$-$F0 đo tác động của lịch sử; F2$-$F1 và
+F3$-$F1 đo lợi ích của từng nhóm khi đã có lịch sử; F4$-$F2 và F4$-$F3 đo phần bổ sung của nhóm còn lại.
+Đặc trưng được tính bằng các phép quét tuyến tính theo tài khoản, tăng tốc bằng Numba.
+
+\subsection{Tăng cường dữ liệu}
+
+Các phương pháp tăng cường chỉ bổ sung giao dịch rửa tiền tổng hợp vào tập train; validation và test luôn là
+dữ liệu thật. Số mẫu bổ sung bằng 0,5 lần số mẫu dương của train (1.148 mẫu mỗi lượt). Chúng tôi so sánh:
+\textbf{ER} lặp ngẫu nhiên mẫu dương; \textbf{E1} SMOTENC trên đặc trưng đã chuẩn hóa, cột phân loại lấy mode
+của láng giềng; \textbf{E2} CTGAN 300 epoch chỉ học trên mẫu dương; \textbf{E3a/E3b} một LLM thương mại qua
+OpenAI API sinh giao dịch rửa tiền dạng JSON từ ví dụ thật, thống kê cột và các ràng buộc logic giữa các cột,
+trong đó E3b bổ sung mô tả các kiểu rửa tiền của AMLworld vào prompt. Dữ liệu LLM được kiểm tra hợp lệ, loại
+trùng lặp và loại các dòng sao chép nguyên văn dữ liệu thật; chi phí gọi API được giới hạn bằng một sổ ngân
+sách. Chất lượng dữ liệu sinh được đo bằng thống kê KS trung bình theo cột so với mẫu dương thật, và bằng AUC
+của một bộ phân loại XGBoost phân biệt thật/giả (\emph{disc-AUC}; 0,5 nghĩa là không phân biệt được).
+
+Thí nghiệm tăng cường được thực hiện trước nghiên cứu đặc trưng, trên pipeline 28 đặc trưng tương ứng F1
+nhưng xử lý các giao dịch cùng phút theo thứ tự dòng ổn định trong tệp. Vì khác giao thức, chúng tôi chỉ so
+sánh các phương pháp tăng cường với nhau, không so sánh con số tuyệt đối với F0--F4.
+
+\subsection{Mô hình và đánh giá}
+
+Mọi cấu hình dùng XGBoost với tối đa 1.000 cây, learning rate 0,05, độ sâu 8, subsample và colsample 0,8,
+trọng số nút con tối thiểu 1, thuật toán \texttt{hist} trên GPU, dừng sớm sau 100 vòng theo AUC-PR trên
+validation. Không tìm siêu tham số riêng cho từng cấu hình và không thay đổi tỷ lệ lớp. Ngưỡng tối đa F1 được
+chọn trên validation của từng lượt chạy rồi áp dụng nguyên cho test.
+
+Chỉ số chính là Average Precision (AP), tính bằng hàm average precision của scikit-learn. Ngoài ra chúng tôi báo
+cáo F1 tại ngưỡng và Precision@1000/Recall@1000: tỷ lệ giao dịch rửa tiền trong 1.000 cảnh báo có điểm cao nhất
+trên toàn tập test, và tỷ lệ giao dịch rửa tiền của test nằm trong danh sách đó. Accuracy không được dùng vì
+lớp dương rất hiếm. Mỗi cấu hình chạy ba seed (0, 1, 2); bảng trình bày trung bình $\pm$ độ lệch chuẩn mẫu, và
+các so sánh dùng hiệu số theo cùng seed. Độ lệch chuẩn này phản ánh biến động huấn luyện trên cùng tập test,
+không phải khoảng tin cậy trên quần thể giao dịch mới.
+
+\subsection{Xác minh và tái lập}
+
+Pipeline có 43 kiểm thử hồi quy: biên thời gian và cửa sổ, giao dịch tự chuyển, tiền tệ, bất biến khi đổi thứ
+tự các dòng cùng thời điểm, độc lập với nhãn và tương lai, và đối chiếu với cách tính trực tiếp trên mẫu nhỏ.
+Sau khi chạy, 30 tệp dự đoán của 15 lượt được kiểm tra lại về nhãn, thứ tự, AP, chỉ số tại ngưỡng và việc
+ngưỡng được chọn trên validation. Một manifest ghi mã băm dữ liệu, mã băm mã nguồn, phiên bản thư viện, danh
+sách cột và thông tin chia tập. Các lượt chạy được thực hiện trên notebook Kaggle riêng tư với hai GPU Tesla
+T4, NumPy 2.2.6, pandas 2.3.3, scikit-learn 1.7.2, XGBoost 3.1.1 và Numba 0.61.2.
+
+% ======================================================================
+\section{Kết quả thực nghiệm}
+
+\subsection{Đóng góp của các nhóm đặc trưng}
+
+\begin{table*}[t]
+\caption{Phân rã nhóm đặc trưng hành vi (trung bình $\pm$ độ lệch chuẩn qua ba seed). AP được báo cáo trên
+test và validation; các chỉ số còn lại trên test.}
+\label{tab:features}
+\begin{tabular}{lrccccc}
+\toprule
+Cấu hình & Số đặc trưng & AP (test) & AP (validation) & F1 & Precision@1000 & Recall@1000 \\
+\midrule
+\input{generated/tab_features.tex}
+\end{tabular}
+\end{table*}
+
+Bảng~\ref{tab:features} cho thấy chỉ dùng thuộc tính của từng giao dịch (F0) cho AP \FZeroAP. Bổ sung lịch
+sử tài khoản (F1) tạo bước nhảy lớn nhất, lên \FOneAP. Khi đã có lịch sử, nhóm hoạt động theo cửa sổ (F2,
+\FTwoAP) đóng góp nhiều hơn nhóm quan hệ (F3, \FThreeAP), và kết hợp cả hai (F4) đạt AP cao nhất, \FFourAP.
+Thứ tự các cấu hình giống nhau trên validation và test. Bảng~\ref{tab:fsdelta} cho thấy mọi bước bổ sung đều
+cải thiện AP trong cả ba seed, kể cả F4 so với F2: nhóm quan hệ vẫn mang thông tin bổ sung khi đã có nhóm hoạt
+động. Ba seed chỉ đủ mô tả tính nhất quán của các lượt chạy này, chưa đủ để khẳng định ý nghĩa thống kê.
+
+\begin{table}[t]
+\caption{Hiệu số AP trên test theo cùng seed.}
+\label{tab:fsdelta}
+\small
+\begin{tabular}{lccc}
+\toprule
+So sánh & $\Delta$AP TB & Độ lệch chuẩn & Số seed tăng \\
+\midrule
+\input{generated/tab_feature_deltas.tex}
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/feature_ablation.pdf}
+\caption{AP và Recall@1000 của năm cấu hình đặc trưng; thanh sai số là độ lệch chuẩn qua ba seed trên cùng
+tập test.}
+\label{fig:ablation}
+\end{figure}
+
+\subsection{Ý nghĩa theo ngân sách cảnh báo}
+
+Tập test có 1.798 giao dịch rửa tiền. Trong 1.000 cảnh báo có điểm cao nhất, F1 tìm được trung bình khoảng
+\FOneHits{} giao dịch rửa tiền, còn F4 tìm được \FFourHits; số cảnh báo sai giảm tương ứng trong khi khối lượng
+công việc của chuyên viên vẫn là 1.000 cảnh báo. Tuy vậy, recall \FFourRk{} cũng có nghĩa là gần một nửa số
+giao dịch rửa tiền nằm ngoài danh sách. Ngân sách 1.000 cảnh báo cho toàn tập test là một giả định thực nghiệm;
+hệ thống thật có thể cần giới hạn theo ngày hoặc theo năng lực xử lý của bộ phận điều tra.
+
+\subsection{Đặc trưng được mô hình sử dụng}
+
+\begin{table}[t]
+\caption{Mười đặc trưng có tỷ trọng total gain trung bình cao nhất trong F4 (ba seed).}
+\label{tab:importance}
+\small
+\begin{tabular}{r>{\raggedright\arraybackslash}p{4.3cm}lr}
+\toprule
+\# & Đặc trưng & Nhóm & Gain (\%) \\
+\midrule
+\input{generated/tab_importance.tex}
+\end{tabular}
+\end{table}
+
+Bảng~\ref{tab:importance} cho thấy các đặc trưng quan trọng nhất kết hợp thuộc tính hiện tại với bối cảnh tài
+khoản: số lượt nhận trước đó của bên gửi, thời gian từ giao dịch gần nhất của bên nhận, độ lệch số tiền so với
+lịch sử cùng tiền tệ, hình thức thanh toán và số lần cặp tài khoản đã giao dịch. Điều này phù hợp với trực
+giác nghiệp vụ: tài khoản vừa nhận tiền rồi chuyển đi với số tiền bất thường so với thói quen là dấu hiệu của
+tài khoản trung gian. Tuy nhiên, importance của cây bị ảnh hưởng bởi tương quan giữa các cột, nên không được
+diễn giải như tác động nhân quả và không thay thế phép phân rã theo nhóm ở trên.
+
+\subsection{Tăng cường dữ liệu}
+
+\begin{table*}[t]
+\caption{Tăng cường dữ liệu train (giao thức pipeline trước, 28 đặc trưng; ba seed). KS và disc-AUC đo khoảng
+cách giữa mẫu sinh và mẫu rửa tiền thật; disc-AUC càng gần 0,5 thì mẫu sinh càng giống thật.}
+\label{tab:aug}
+\begin{tabular}{lccccc}
+\toprule
+Phương pháp & AP & F1 & Precision@1000 & KS trung bình & disc-AUC \\
+\midrule
+\input{generated/tab_aug.tex}
+\end{tabular}
+\end{table*}
+
+Bảng~\ref{tab:aug} cho thấy không phương pháp tăng cường nào cải thiện rõ rệt so với không tăng cường (AP
+\EZeroAP). SMOTENC cho AP \EOneAP, chênh lệch theo cùng seed chỉ \EOneDelta{} và nằm trong biến động giữa các
+seed. Lặp mẫu dương giảm nhẹ ($\Delta$AP = \ERDelta), CTGAN giảm \ETwoDelta, còn hai biến thể LLM giảm mạnh
+nhất (\ELLMaDelta{} và \ELLMbDelta).
+
+Cột disc-AUC giải thích hiện tượng này. Mẫu lặp lại không phân biệt được với mẫu thật (\ERDisc), SMOTENC ở mức
+\EOneDisc, trong khi CTGAN (\ETwoDisc) và LLM (\ELLMaDisc{} và \ELLMbDisc) gần như bị tách biệt hoàn toàn. Mẫu
+giả vẫn mang nhãn dương, nên mô hình học thêm những vùng không tồn tại trong dữ liệu thật. Với LLM, precision
+tại ngưỡng tăng nhưng recall giảm mạnh: mô hình trở nên ``thận trọng'' hơn và bỏ sót nhiều giao dịch rửa tiền
+hơn. Đáng chú ý, bổ sung tri thức miền về các kiểu rửa tiền vào prompt (E3b) không cải thiện mà còn làm kết
+quả kém ổn định hơn giữa các seed (độ lệch chuẩn F1 lớn). Với dữ liệu giao dịch, mỗi giao dịch rửa tiền là một
+phần của chuỗi có cấu trúc thời gian và quan hệ; sinh từng dòng độc lập trong không gian đặc trưng khó tái tạo
+được các ràng buộc này. Đây là lý do thực tế để chúng tôi chuyển trọng tâm sang cải thiện biểu diễn.
+
+\subsection{Dịch chuyển phân bố theo thời gian}
+
+Thống kê theo ngày cho thấy từ 11/09/2022, lưu lượng giao dịch giảm mạnh trong khi tỷ lệ nhãn dương tăng vọt
+(Hình~\ref{fig:daily}): ngày 10/09 có 208.325 giao dịch và 442 nhãn dương, ngày 11/09 chỉ có 396 giao dịch
+nhưng 232 nhãn dương. Trong tập test, phần trước 11/09 có 1.014.774 giao dịch với 1.143 nhãn dương (0,113\%),
+còn phần từ 11/09 chỉ có 1.108 giao dịch nhưng 655 nhãn dương (59,1\%). Nguyên nhân chưa được xác minh từ cơ
+chế sinh dữ liệu. Đây là phát hiện hậu kiểm, nên chúng tôi không loại phần này khỏi đánh giá chính và không
+huấn luyện lại, mà tách các dự đoán cố định thành hai phần để chẩn đoán (Bảng~\ref{tab:temporal}).
+
+\begin{table}[t]
+\caption{AP trên hai phần của tập test, tách tại 11/09/2022 (chẩn đoán hậu kiểm, cùng các mô hình).}
+\label{tab:temporal}
+\small
+\begin{tabular}{lcc}
+\toprule
+Cấu hình & Trước 11/09 & Từ 11/09 \\
+\midrule
+\input{generated/tab_temporal.tex}
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/daily_profile.pdf}
+\caption{Số giao dịch và tỷ lệ nhãn dương theo ngày trong HI-Small.}
+\label{fig:daily}
+\end{figure}
+
+Trên phần trước 11/09, F4 vẫn vượt F1 (AP \FFourAPpre{} so với \FOneAPpre), nên lợi ích của đặc trưng không
+chỉ đến từ phần cuối bất thường. Ở phần cuối, chỉ thuộc tính giao dịch (F0) đã đạt AP \FZeroAPpost{} và F4
+không vượt F0. Vì AP phụ thuộc tỷ lệ nhãn, chúng tôi chỉ so sánh các cấu hình trong cùng một phần, không so
+sánh AP giữa hai phần để kết luận phần nào dễ hơn.
+
+\subsection{Chi phí tính toán}
+
+Trên Kaggle, tạo toàn bộ bảng đặc trưng (gồm đọc dữ liệu và biên dịch JIT) mất khoảng 35,0 giây và bảng đặc
+trưng chiếm khoảng 1,33 GB. Huấn luyện 15 mô hình mất 620,2 giây; toàn bộ lượt chạy, gồm đánh giá và ghi tệp,
+mất 733,3 giây. Các con số mô tả một lượt chạy trên một môi trường cụ thể; chúng tôi chưa đo độ trễ cập nhật
+đặc trưng theo từng giao dịch trong một dịch vụ trực tuyến.
+
+% ======================================================================
+\section{Thảo luận}
+
+\paragraph{Ý nghĩa đối với an toàn hệ thống thông tin} Hệ thống giám sát giao dịch là một thành phần phòng
+thủ; chất lượng của nó được đo bằng số giao dịch rửa tiền tìm được trong ngân sách cảnh báo mà bộ phận điều
+tra xử lý được. Kết quả cho thấy cách biểu diễn hành vi quyết định hiệu quả nhiều hơn việc bổ sung dữ liệu
+giả, và các đặc trưng hành vi còn có lợi thế giải thích được bằng ngôn ngữ nghiệp vụ, điều cần thiết khi cảnh
+báo phải được chuyên viên xem xét. Mặt khác, một biểu diễn dựa trên hành vi cũng tạo ra bề mặt tấn công: kẻ rửa
+tiền có thể chủ động chia nhỏ giao dịch, giãn thời gian hoặc thêm tài khoản trung gian để làm sai lệch các
+thống kê theo cửa sổ và quan hệ. Trong triển khai, hệ thống còn cần kiểm soát truy cập dữ liệu, bảo vệ khóa
+dịch vụ và kết quả cảnh báo; mã nguồn công bố của chúng tôi không chứa khóa API, dữ liệu thô hay dự đoán từng
+giao dịch.
+
+\paragraph{Rò rỉ thời gian là một lỗ hổng phương pháp} Một điểm số cao mất ý nghĩa nếu đặc trưng dùng thông tin
+tương lai, nhãn của tập đánh giá, hoặc phụ thuộc vào thứ tự dòng tùy ý của tệp. Pipeline tăng cường trước dùng
+28 đặc trưng tương ứng F1 nhưng xử lý giao dịch cùng phút theo thứ tự dòng, và đạt AP \EZeroAP{} khi không tăng
+cường; F1 với chính sách nghiêm ngặt chỉ đạt \FOneAP. Hai pipeline còn khác nhau ở một số chi tiết cài đặt, nên
+đây không phải phép so sánh có kiểm soát. Tuy nhiên, khoảng cách lớn này gợi ý rằng thông tin về các giao dịch
+cùng phút và thứ tự của chúng trong tệp có thể làm điểm số tăng đáng kể. Vì vậy, khi so sánh các họ đặc trưng
+hoặc so sánh với công trình khác, chính sách thời gian phải được cố định và công bố rõ, giống như việc cố định
+mô hình và cách chia dữ liệu. Cũng vì lý do này, F1 của F4 (\FFourFone) không nên được so sánh trực tiếp với
+các con số đã công bố trên HI-Small~\cite{blanusa2024gfp}, vốn dùng cách chọn ngưỡng và cách xử lý thời gian
+khác.
+
+\paragraph{Giới hạn} (i) Dữ liệu là mô phỏng, nhãn do trình sinh tạo ra, không có KYC, số dư hay xác minh nguồn
+tiền thật. (ii) Tập test HI-Small đã được xem trong thí nghiệm tăng cường trước, nên dù năm cấu hình được định
+trước, kết quả vẫn mang tính thăm dò. (iii) Ba seed chỉ đo biến động huấn luyện, không chứng minh ý nghĩa thống
+kê trên dữ liệu độc lập. (iv) Siêu tham số cố định, nên kết quả là tác động của đặc trưng dưới một ngân sách
+huấn luyện, không phải hiệu năng tối đa; một số lượt chạm hoặc gần giới hạn 1.000 cây. (v) Trung bình log số
+tiền trong nhóm lịch sử vẫn gộp các tiền tệ. (vi) Nhóm quan hệ chỉ gồm thống kê cục bộ, chưa phát hiện chu trình
+hay chuỗi nhiều bước. (vii) Thí nghiệm tăng cường dùng giao thức khác. (viii) Phần cuối tập test có phân bố bất
+thường. (ix) Kết quả chưa được kiểm chứng trên các bộ AMLworld khác hay dữ liệu ngân hàng thật.
+
+% ======================================================================
+\section{Kết luận}
+
+Trên bộ dữ liệu IBM AML HI-Small, cải thiện biểu diễn hành vi mang lại lợi ích lớn và nhất quán, trong khi bổ
+sung dữ liệu tổng hợp thì không. Với XGBoost cố định, bổ sung lịch sử tài khoản, hoạt động theo cửa sổ và quan
+hệ đối tác nâng AP từ \FZeroAP{} lên \FFourAP; trong 1.000 cảnh báo có điểm cao nhất, cấu hình đầy đủ đạt
+precision \FFourPkPct\% và recall \FFourRkPct\%. Nhóm hoạt động đóng góp nhiều hơn nhóm quan hệ khi bổ sung
+riêng, và nhóm quan hệ vẫn cải thiện thêm khi kết hợp. Lặp mẫu, SMOTENC, CTGAN và hai biến thể LLM đều không
+cải thiện rõ rệt; dữ liệu do CTGAN và LLM sinh ra gần như bị phân biệt hoàn toàn với dữ liệu thật. Kết quả
+trên phần test trước 11/09 duy trì lợi ích của đặc trưng, đồng thời phần cuối bất thường nhắc rằng kết luận
+có thể không đồng nhất ở mọi giai đoạn của dữ liệu.
+
+Các hướng phát triển gồm: so sánh với đặc trưng mẫu đồ thị nhiều bước như GFP dưới cùng chính sách thời gian;
+phân tích kết quả theo từng kiểu rửa tiền; đánh giá độ bền của mô hình trước các chiến lược né tránh như chia
+nhỏ giao dịch hay dùng tài khoản trung gian; và kiểm chứng trên các bộ AMLworld khác với một tập đánh giá định
+trước hoàn toàn mới.
+
+\paragraph{Tái lập} Mã nguồn, cấu hình, kiểm thử và kết quả từng lượt chạy được công bố tại
+\url{https://github.com/Chung10102004/atbmtt}. Dữ liệu thô và dự đoán từng giao dịch không được đưa vào kho mã.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

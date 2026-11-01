@@ -7,6 +7,7 @@ Nghiên cứu ảnh hưởng của đặc trưng lịch sử, hoạt động the
 ## Báo cáo và số liệu
 
 - [Báo cáo PDF — 14 trang](reports/bao_cao_atbmhttt.pdf).
+- [Bài báo dạng paper — LaTeX, khuôn ACM hai cột](paper/main.pdf), mã nguồn trong [paper/](paper/).
 - [Bản Word chỉnh sửa](reports/bao_cao_atbmhttt.docx) và [bản Markdown](reports/bao_cao_atbmhttt.md).
 - [Phương pháp và định nghĩa đặc trưng](docs/feature-study-method.md).
 - [Bằng chứng số liệu](reports/evidence/feature_study/) và [biểu đồ PDF](reports/assets/feature_ablation.pdf).
