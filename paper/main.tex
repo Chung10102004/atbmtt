@@ -397,8 +397,9 @@ F1 với time policy nghiêm ngặt chỉ đạt \FOneAP. Hai pipeline còn khá
 phải phép so sánh có kiểm soát. Tuy nhiên, khoảng cách lớn này gợi ý rằng thông tin về các giao dịch cùng phút và thứ
 tự của chúng trong tệp có thể làm score tăng đáng kể. Vì vậy, khi so sánh các feature set hoặc so sánh với công trình
 khác, time policy phải được cố định và công bố rõ, giống như việc cố định model và temporal split. Cũng vì lý do này,
-F1 của F4 (\FFourFone) không nên được so sánh trực tiếp với các con số đã công bố trên HI-Small~\cite{blanusa2024gfp},
-vốn dùng cách chọn threshold và cách xử lý thời gian khác.
+F1 của F4 (\FFourFone) không nên được so sánh trực tiếp với các con số đã công bố trên HI-Small~\cite{blanusa2024gfp,
+egressy2024multignn}: các công trình đó dùng điểm cắt train/test khác (ví dụ Multi-GNN cắt theo nguyên ngày), threshold
+cố định thay vì chọn trên validation, và cách xử lý thời gian khác.
 
 \paragraph{Giới hạn} (i) Dữ liệu là mô phỏng, nhãn do trình sinh tạo ra, không có KYC, số dư hay xác minh nguồn tiền
 thật. (ii) Test set HI-Small đã được xem trong thí nghiệm augmentation trước, nên dù năm cấu hình được định trước, kết

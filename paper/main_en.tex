@@ -405,8 +405,9 @@ without augmentation, whereas F1 under the strict time policy reaches only \FOne
 some implementation details, so this is not a controlled comparison. Still, the large gap suggests that information
 about same-minute transactions and their order in the file can inflate scores considerably. When comparing feature
 sets or comparing with other work, the time policy must therefore be fixed and reported, just like the model and the
-temporal split. For the same reason, the F1 of F4 (\FFourFone) should not be compared directly with published
-HI-Small results~\cite{blanusa2024gfp}, which use different threshold selection and time handling.
+temporal split. For the same reason, the F1 of F4 (\FFourFone) should not be compared directly with published HI-Small
+results~\cite{blanusa2024gfp,egressy2024multignn}: those works use different train/test cut points (for example,
+Multi-GNN cuts at whole days), a fixed threshold instead of one chosen on validation, and different time handling.
 
 \paragraph{Limitations} (i) The data is simulated; labels come from the generator, with no KYC, balances, or
 verification of the source of funds. (ii) The HI-Small test set was examined in the earlier augmentation experiment,

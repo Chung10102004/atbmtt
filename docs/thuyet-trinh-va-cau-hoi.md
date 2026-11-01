@@ -54,30 +54,42 @@ môn An toàn bảo mật:
 
 ## 2. Flow thuyết trình (10–15 phút)
 
-Mục tiêu khoảng **14 phút** nói, còn khoảng 1 phút dự phòng. Có 3 người nói: người 1 khoảng 4 phút (slide 1–5), người 2 khoảng 5,5 phút (slide 6–9), người 3 khoảng 4,5 phút (slide 10–13). Nên phân người theo
-phần mình đã trực tiếp làm, để trả lời câu hỏi sâu được.
+Theo bộ slide [slide/AML_thuyet_trinh.pptx](../slide/AML_thuyet_trinh.pptx): 17 slide nội dung + 1 slide dự phòng,
+tổng khoảng **13:45**. Người nói và thời lượng đã ghi ở đầu speaker notes của từng slide. Có 3 người nói: người 1
+khoảng 4:40 (slide 1–7), người 2 khoảng 5:05 (slide 8–12), người 3 khoảng 4:00 (slide 13–17). Nên phân người theo phần
+mình đã trực tiếp làm, để trả lời câu hỏi sâu được.
 
-| # | Slide | Thời gian | Người nói | Nội dung chính | Câu cần nói được |
+Mạch câu chuyện: **bài toán → dữ liệu và protocol chung → Hướng A (thêm dữ liệu) thất bại và vì sao → Hướng B (thêm
+bối cảnh) thành công → ý nghĩa vận hành → tự kiểm tra tính hợp lệ → góc nhìn bảo mật → kết luận.**
+
+| # | Phần | Slide | Thời gian | Người nói | Câu cần nói được |
 |---|---|---|---|---|---|
-| 1 | Tiêu đề | 0:20 | 1 | Tên đề tài, thành viên, môn học | – |
-| 2 | Bối cảnh | 1:00 | 1 | Rửa tiền; nghĩa vụ báo cáo giao dịch đáng ngờ (FATF, Luật PCRT 2022). **Transaction monitoring giống một IDS**: xếp hạng luồng sự kiện lớn, mỗi false positive tốn thời gian chuyên viên | "Đây là bài toán phát hiện, giống phát hiện xâm nhập" |
-| 3 | Ba khó khăn | 1:00 | 1 | (1) Positive class chỉ khoảng 0,1%; (2) một giao dịch đơn lẻ không có tín hiệu, tín hiệu nằm ở bối cảnh; (3) dễ temporal leakage | "Accuracy 99,9% là vô nghĩa" |
-| 4 | Dataset và split | 1:00 | 1 | IBM AML HI-Small: 5.078.345 giao dịch, 5.177 rửa tiền (0,102%). Bảng split theo thời gian (train 2.297 / val 1.082 / test 1.798 positive) | "Chia theo thời gian, không random" |
-| 5 | Câu hỏi nghiên cứu | 0:40 | 1 | Hai hướng: **thêm dữ liệu** (augmentation, LLM) và **thêm bối cảnh** (feature). Cùng XGBoost, cùng split, cùng cách chọn threshold, 3 seed | "So sánh có kiểm soát" |
-| 6 | Data augmentation | 2:00 | 2 | 6 cấu hình E0, ER, E1, E2, E3a, E3b. Bảng AP + discriminator AUC. Thông điệp: **không cái nào tốt hơn E0**; CTGAN và LLM sinh dữ liệu bị phân biệt gần như hoàn toàn (0,98–0,999) | "Dữ liệu giả không giống thật nên làm model học sai" |
-| 7 | Time policy | 1:00 | 2 | Công thức H(t) = {j : t_j < t}; giao dịch cùng phút dùng chung snapshot; window [t−W, t); tổng tiền tách theo currency | "Không nhìn trước tương lai, không phụ thuộc thứ tự dòng" |
-| 8 | 4 feature group | 1:00 | 2 | Transaction 11, History 17, Activity 20, Relationship 15 = 63. Mỗi nhóm cho 1–2 ví dụ dễ hiểu | – |
-| 9 | Kết quả ablation | 1:30 | 2 | Hình AP/Recall@1000 F0 đến F4: 0,171, 0,534, 0,662 / 0,610, 0,684. Mọi bước thêm đều tăng AP ở 3/3 seed | "History tạo bước nhảy lớn nhất" |
-| 10 | Ý nghĩa vận hành | 1:00 | 3 | Trong 1.000 alert: F1 bắt đúng khoảng 712, F4 bắt đúng 915 (precision 91,5%). Nhưng recall 50,9%: vẫn sót khoảng một nửa. Feature importance: tài khoản vừa nhận tiền rồi chuyển đi bất thường là dấu hiệu money mule | "Cùng khối lượng công việc, bắt được nhiều hơn khoảng 200 ca" |
-| 11 | Tính hợp lệ | 1:30 | 3 | (a) Distribution shift từ 11/09 (Hình daily profile); trước 11/09 F4 vẫn hơn F1 (0,528 so với 0,333). (b) Pipeline cũ xử lý theo thứ tự dòng đạt AP 0,670, còn F1 nghiêm ngặt đạt 0,534, nên time policy ảnh hưởng mạnh. (c) Test set đã dùng lại nên kết quả mang tính exploratory | "Nhóm tự tìm ra điểm yếu của chính đánh giá của mình" |
-| 12 | Góc nhìn ATBMHTTT | 1:00 | 3 | Detector là thành phần phòng thủ; feature giải thích được cho chuyên viên; **attack surface**: structuring, giãn thời gian, money mule (evasion); bảo vệ dữ liệu và API key (repo không chứa key, dữ liệu thô) | – |
-| 13 | Giới hạn, hướng phát triển, kết luận | 1:00 | 3 | 3–4 giới hạn chính; future work: so sánh GFP cùng time policy, phân tích theo typology, đánh giá evasion; câu kết | Câu kết: "Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn thêm dữ liệu giả" |
-| | **Tổng** | **14:00** | | | |
+| 1 | Mở đầu | Tiêu đề | 0:20 | 1 | Câu hỏi trung tâm: thêm dữ liệu tổng hợp hay thêm bối cảnh hành vi? |
+| 2 | Mở đầu | Nội dung trình bày | 0:20 | 1 | Sáu phần; hai hướng A và B là trục chính |
+| 3 | Bài toán | Giám sát giao dịch như một IDS | 0:50 | 1 | "Đây là bài toán phát hiện, giống phát hiện xâm nhập" |
+| 4 | Bài toán | Ba khó khăn | 0:50 | 1 | "Accuracy 99,9% là vô nghĩa" |
+| 5 | Bài toán | Câu hỏi nghiên cứu: hai hướng, một protocol | 0:40 | 1 | "So sánh có kiểm soát" |
+| 6 | Bài toán | Đóng góp và định vị | 0:50 | 1 | "Không phải thuật toán mới" |
+| 7 | Dữ liệu và protocol | IBM AML HI-Small, temporal split | 0:50 | 1 | "Chia theo thời gian, không random" |
+| 8 | Dữ liệu và protocol | Thiết lập thực nghiệm chung | 0:45 | 2 | "Cùng model, cùng split, cùng cách chọn threshold" |
+| 9 | Hướng A | Kết quả data augmentation | 1:20 | 2 | "Dữ liệu giả không giống thật (discriminator AUC ≥ 0,98) nên model học sai"; chuyển sang hướng B |
+| 10 | Hướng B | Time policy | 0:50 | 2 | "Không nhìn trước tương lai, không phụ thuộc thứ tự dòng" |
+| 11 | Hướng B | 63 feature, bốn nhóm | 0:50 | 2 | Mỗi nhóm cho 1 ví dụ dễ hiểu |
+| 12 | Hướng B | Kết quả ablation | 1:20 | 2 | "History tạo bước nhảy lớn nhất; F4 đạt AP 0,684; 3/3 seed đều tăng" |
+| 13 | Hướng B | Ý nghĩa vận hành | 0:50 | 3 | "Cùng 1.000 alert, bắt thêm khoảng 200 ca; nhưng recall chỉ 50,9%" |
+| 14 | Hợp lệ và bảo mật | Kiểm tra tính hợp lệ | 1:10 | 3 | "Nhóm tự tìm ra điểm yếu của chính đánh giá của mình" |
+| 15 | Hợp lệ và bảo mật | Góc nhìn an toàn bảo mật | 0:50 | 3 | Phòng thủ, leakage, evasion, bảo vệ dữ liệu |
+| 16 | Kết luận | Giới hạn và hướng phát triển | 0:40 | 3 | Kết quả có giá trị so sánh tương đối |
+| 17 | Kết luận | Kết luận và hỏi đáp | 0:30 | 3 | "Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn thêm dữ liệu giả" |
+| 18 | Dự phòng | Bảng số liệu đầy đủ | – | – | Chỉ mở khi bị hỏi số liệu |
+| | | **Tổng** | **13:45** | | |
 
 **Mẹo:**
-- Slide 6 và 9 là hai slide "kết quả", nên dùng hình hoặc bảng lớn, ít chữ. Hình có sẵn trong `paper/figures/`.
-- Nếu bị giới hạn 10 phút: gộp slide 7 và 8, rút slide 11 còn ý (a), bỏ slide 12 vào phần trả lời câu hỏi.
-- Chuẩn bị sẵn 1 slide dự phòng (backup) chứa bảng đầy đủ F0–F4 và bảng augmentation để mở khi bị hỏi số liệu.
+- Slide 9 và 12 là hai slide kết quả chính; nói chậm và chỉ vào biểu đồ.
+- Nếu bị giới hạn 10 phút: bỏ slide 2 (nội dung) và slide 6 (đóng góp) để dành cho phần hỏi đáp, rút slide 14 còn ý
+  (a), nói slide 15 trong 30 giây.
+- Câu chuyển ở slide 9 rất quan trọng: "dữ liệu giả không giúp, nên nhóm chuyển sang thêm bối cảnh" là lý do của cả
+  phần sau.
 
 ### Bảng số cần thuộc
 
@@ -118,9 +130,17 @@ XGBoost với feature tốt là baseline mạnh. Bài GFP cho thấy GBDT + feat
 Ngoài ra, chi phí thấp (khoảng 12 phút cho 15 model) và feature giải thích được cho chuyên viên, điều quan trọng trong
 AML.
 
-**A4. F1 của nhóm 0,685, GFP 0,63–0,65. Vậy nhóm tốt hơn?**
-**Không được kết luận như vậy.** Cách chọn threshold và xử lý thời gian khác nhau; bài báo đã ghi rõ không so sánh
-trực tiếp.
+**A4. Sao không so (benchmark) với kết quả của các paper khác?**
+Vì các con số không cùng điều kiện, nên đặt cạnh nhau sẽ gây hiểu nhầm:
+- **Test set khác:** Multi-GNN và MEGA cắt train/val/test theo **nguyên ngày** (test là 09–18/09, 1.611 ca rửa tiền),
+  còn nhóm cắt theo số giao dịch 60/20/20 (test từ 08/09 16:12, 1.798 ca). Phần dữ liệu bất thường từ 11/09 chiếm 41%
+  số ca trong test của họ so với 36% của nhóm.
+- **Threshold khác:** code Multi-GNN dùng threshold cố định 0,5 (argmax); nhóm chọn threshold tối ưu F1 trên validation.
+- **Time policy và tuning khác:** GFP xử lý giao dịch theo batch; các paper tune hyperparameter và chạy 5 lần.
+
+Muốn benchmark thật thì phải chạy lại mô hình của nhóm theo đúng split và threshold của họ; đây là hướng phát triển.
+Câu tham khảo duy nhất có thể nói: trên HI-Small, GFP + XGBoost được báo cáo F1 khoảng 0,63–0,65 và GNN tiêu chuẩn thấp
+hơn, nên XGBoost với feature tốt là một baseline mạnh; nhưng **không** nói F4 (F1 0,685) tốt hơn hay kém hơn họ.
 
 ### B. Dữ liệu
 
