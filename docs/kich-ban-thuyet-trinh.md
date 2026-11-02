@@ -2,7 +2,8 @@
 
 Kịch bản cho bộ slide [slide/AML_thuyet_trinh.pptx](../slide/AML_thuyet_trinh.pptx). Cùng nội dung đã được ghi vào
 speaker notes của từng slide (bật Presenter View để xem khi nói). Câu hỏi có thể gặp và gợi ý trả lời nằm ở
-[thuyet-trinh-va-cau-hoi.md](thuyet-trinh-va-cau-hoi.md).
+[thuyet-trinh-va-cau-hoi.md](thuyet-trinh-va-cau-hoi.md). File này được sinh bởi `slide/kich_ban.py`; sửa nội dung ở đó
+rồi chạy lại.
 
 ## 1. Mục đích của bài thuyết trình
 
@@ -32,19 +33,19 @@ Bài thuyết trình cần làm hội đồng tin bốn điều:
 
 ## 2. Phân vai và mốc thời gian
 
-Tổng thời lượng **13:45**, còn khoảng 30 giây dự phòng trong giới hạn 15 phút.
+Tổng thời lượng **14:35**, trong giới hạn 15 phút.
 
 | Người nói | Họ tên (nhóm tự điền) | Slide | Thời lượng |
 |---|---|---|---|
 | 1 | … | 1–7 | 4:40 |
-| 2 | … | 8–12 | 5:05 |
-| 3 | … | 13–17 | 4:00 |
+| 2 | … | 8–12 | 4:35 |
+| 3 | … | 13–18 | 5:20 |
 
 Thay `[tên người nói 2]`, `[tên người nói 3]` trong lời nói bằng tên thật. Nên phân người theo phần mình đã trực tiếp
 làm để trả lời câu hỏi sâu được.
 
-**Mốc kiểm tra thời gian** (cột "Kết thúc lúc"): nếu đến cuối slide 7 đã quá 5:15, hoặc cuối slide 12 đã quá 10:30,
-hãy rút gọn các slide sau theo mục 4.
+**Mốc kiểm tra thời gian** (cột "Kết thúc lúc"): nếu đến cuối slide 7 đã quá 5:15, hoặc cuối slide
+13 đã quá 11:20, hãy rút gọn các slide sau theo mục 4.
 
 | # | Slide | Người nói | Thời lượng | Kết thúc lúc |
 |---|---|---|---|---|
@@ -56,16 +57,17 @@ hãy rút gọn các slide sau theo mục 4.
 | 6 | Đóng góp: một phép so sánh có kiểm soát, không phải thuật toán mới | 1 | 0:50 | 3:50 |
 | 7 | IBM AML HI-Small: 5,08 triệu giao dịch, chia theo thời gian | 1 | 0:50 | 4:40 |
 | 8 | Cùng model, cùng split, cùng cách chọn threshold | 2 | 0:45 | 5:25 |
-| 9 | Dữ liệu tổng hợp không giúp; dữ liệu LLM làm AP giảm mạnh nhất | 2 | 1:20 | 6:45 |
-| 10 | Chỉ nhìn quá khứ: lịch sử nghiêm ngặt theo timestamp | 2 | 0:50 | 7:35 |
-| 11 | 63 feature hành vi chia thành bốn nhóm | 2 | 0:50 | 8:25 |
-| 12 | Lịch sử tạo bước nhảy lớn nhất; kết hợp ba nhóm cho AP cao nhất | 2 | 1:20 | 9:45 |
-| 13 | Cùng 1.000 cảnh báo, F4 tìm thêm khoảng 200 ca rửa tiền | 3 | 0:50 | 10:35 |
-| 14 | Kiểm tra lại tính hợp lệ của chính đánh giá | 3 | 1:10 | 11:45 |
-| 15 | Detector là thành phần phòng thủ, và cũng có bề mặt tấn công | 3 | 0:50 | 12:35 |
-| 16 | Giới hạn và hướng phát triển | 3 | 0:40 | 13:15 |
-| 17 | Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn bổ sung dữ liệu giả. | 3 | 0:30 | 13:45 |
-| 18 | Bảng số liệu đầy đủ (dự phòng) | – | – | chỉ mở khi được hỏi |
+| 9 | Bốn cách sinh thêm giao dịch rửa tiền cho train set | 2 | 0:50 | 6:15 |
+| 10 | Dữ liệu tổng hợp không giúp; dữ liệu LLM làm AP giảm mạnh nhất | 2 | 1:20 | 7:35 |
+| 11 | Chỉ nhìn quá khứ: lịch sử nghiêm ngặt theo timestamp | 2 | 0:50 | 8:25 |
+| 12 | 63 feature hành vi chia thành bốn nhóm | 2 | 0:50 | 9:15 |
+| 13 | Lịch sử tạo bước nhảy lớn nhất; kết hợp ba nhóm cho AP cao nhất | 3 | 1:20 | 10:35 |
+| 14 | Cùng 1.000 cảnh báo, F4 tìm thêm khoảng 200 ca rửa tiền | 3 | 0:50 | 11:25 |
+| 15 | Kiểm tra lại tính hợp lệ của chính đánh giá | 3 | 1:10 | 12:35 |
+| 16 | Detector là thành phần phòng thủ, và cũng có bề mặt tấn công | 3 | 0:50 | 13:25 |
+| 17 | Giới hạn và hướng phát triển | 3 | 0:40 | 14:05 |
+| 18 | Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn bổ sung dữ liệu giả. | 3 | 0:30 | 14:35 |
+| 19 | Bảng số liệu đầy đủ (dự phòng) | – | – | chỉ mở khi được hỏi |
 
 ## 3. Kịch bản từng slide
 
@@ -155,9 +157,20 @@ hãy rút gọn các slide sau theo mục 4.
 
 > Cảm ơn bạn. Mọi cấu hình dùng cùng một XGBoost, tối đa 1.000 cây, early stopping theo AUC-PR trên validation. Nhóm cố ý không tuning riêng từng cấu hình, để điểm tăng chắc chắn đến từ feature hoặc dữ liệu, không phải từ tuning. Chỉ số chính là AP; threshold chọn trên validation rồi giữ nguyên khi chạy test. Precision và Recall trong 1.000 alert cao nhất mô phỏng năng lực của chuyên viên. Với augmentation, dữ liệu tổng hợp chỉ thêm vào train, 1.148 mẫu mỗi lượt; validation và test luôn là dữ liệu thật.
 
-**Chuyển:** Bắt đầu với hướng A: thêm dữ liệu.
+**Chuyển:** Bắt đầu với hướng A: thêm dữ liệu. Trước hết là cách bốn phương pháp sinh dữ liệu.
 
-### Slide 9. Dữ liệu tổng hợp không giúp; dữ liệu LLM làm AP giảm mạnh nhất
+### Slide 9. Bốn cách sinh thêm giao dịch rửa tiền cho train set
+*Người nói 2 · ~50 giây*
+
+- **Mục đích:** Giải thích cơ chế của bốn phương pháp augmentation trước khi xem kết quả, để người nghe hiểu vì sao kết quả khác nhau.
+- **Chỉ vào:** Lần lượt bốn sơ đồ nhỏ (xanh là dữ liệu thật, vàng là dữ liệu sinh ra), rồi dải ghi chú chung.
+- **Nhấn mạnh:** Hai cách đầu bám sát dữ liệu thật; hai cách sau phải tự học hoặc tự đoán phân phối.
+
+> Cả bốn phương pháp đều sinh thêm giao dịch rửa tiền giả cho train set. Random oversampling chỉ nhân bản các ca thật, nên không tạo thông tin mới. SMOTENC chọn một ca thật và một ca gần nó, rồi tạo điểm nằm giữa hai ca. CTGAN là một mạng GAN: generator sinh dòng giả, discriminator phân biệt thật và giả, hai mạng học đối kháng; nhưng nó chỉ có 2.297 ca để học. Cuối cùng, LLM nhận prompt gồm ví dụ thật, thống kê và ràng buộc, rồi trả về dòng JSON; biến thể E3b thêm mô tả các kiểu rửa tiền. Mọi phương pháp chỉ thêm 1.148 mẫu vào train, còn validation và test luôn là dữ liệu thật.
+
+**Chuyển:** Và đây là kết quả của hướng A.
+
+### Slide 10. Dữ liệu tổng hợp không giúp; dữ liệu LLM làm AP giảm mạnh nhất
 *Người nói 2 · ~1 phút 20 giây*
 
 - **Mục đích:** Trình bày kết quả âm của hướng A có giải thích nguyên nhân; đây là lý do chuyển sang hướng B.
@@ -168,7 +181,7 @@ hãy rút gọn các slide sau theo mục 4.
 
 **Chuyển:** Vì thêm dữ liệu không giúp, nhóm chuyển sang hướng B: thêm bối cảnh.
 
-### Slide 10. Chỉ nhìn quá khứ: lịch sử nghiêm ngặt theo timestamp
+### Slide 11. Chỉ nhìn quá khứ: lịch sử nghiêm ngặt theo timestamp
 *Người nói 2 · ~50 giây*
 
 - **Mục đích:** Trình bày nền tảng tính đúng của hướng B: không nhìn trước tương lai, không phụ thuộc thứ tự dòng.
@@ -179,7 +192,7 @@ hãy rút gọn các slide sau theo mục 4.
 
 **Chuyển:** Trên nền đó, nhóm xây 63 feature.
 
-### Slide 11. 63 feature hành vi chia thành bốn nhóm
+### Slide 12. 63 feature hành vi chia thành bốn nhóm
 *Người nói 2 · ~50 giây*
 
 - **Mục đích:** Giải thích bốn nhóm feature bằng ví dụ dễ hiểu và cách thiết kế 5 cấu hình F0–F4.
@@ -188,31 +201,31 @@ hãy rút gọn các slide sau theo mục 4.
 
 > 63 feature chia bốn nhóm. Transaction là thuộc tính của chính giao dịch. History là lịch sử tài khoản, ví dụ tài khoản đã nhận bao nhiêu lần, giao dịch gần nhất cách bao lâu. Activity là nhịp độ trong 1 giờ và 24 giờ, và số tiền hiện tại lệch bao nhiêu so với thói quen. Relationship là quan hệ đối tác, ví dụ cặp tài khoản đã giao dịch với nhau bao lâu, có bao nhiêu đối tác khác nhau. Bảng phía dưới là 5 cấu hình F0 đến F4 định trước khi chạy, để mỗi hiệu số đo đúng đóng góp của một nhóm.
 
-**Chuyển:** Và đây là kết quả.
+**Chuyển:** Phần kết quả, [tên người nói 3] sẽ trình bày.
 
-### Slide 12. Lịch sử tạo bước nhảy lớn nhất; kết hợp ba nhóm cho AP cao nhất
-*Người nói 2 · ~1 phút 20 giây*
+### Slide 13. Lịch sử tạo bước nhảy lớn nhất; kết hợp ba nhóm cho AP cao nhất
+*Người nói 3 · ~1 phút 20 giây*
 
 - **Mục đích:** Kết quả chính của đồ án: thêm bối cảnh hành vi làm AP tăng mạnh và nhất quán.
 - **Chỉ vào:** Các cột F0 → F4 ở biểu đồ trái, rồi dòng ΔAP phía dưới.
 - **Nhấn mạnh:** History tạo bước nhảy lớn nhất; F4 đạt AP 0,684; 3/3 seed đều tăng.
 
-> Chỉ dùng thuộc tính giao dịch, F0, AP là 0,171. Thêm History, AP nhảy lên 0,534, đây là bước nhảy lớn nhất. Khi đã có History, Activity đóng góp nhiều hơn Relationship: 0,662 so với 0,610. Kết hợp cả ba nhóm, F4 đạt 0,684, gấp bốn lần F0 với cùng một model. Recall@1000 bên phải có cùng xu hướng. Dòng dưới cùng là hiệu số theo cặp cùng seed: mọi bước bổ sung đều dương ở cả ba seed, kể cả F4 so với F2, nghĩa là Relationship vẫn mang thông tin bổ sung. Ba seed cho thấy tính nhất quán, nhưng chưa đủ để khẳng định ý nghĩa thống kê.
+> Cảm ơn bạn. Đây là kết quả chính. Chỉ dùng thuộc tính giao dịch, F0, AP là 0,171. Thêm History, AP nhảy lên 0,534, đây là bước nhảy lớn nhất. Khi đã có History, Activity đóng góp nhiều hơn Relationship: 0,662 so với 0,610. Kết hợp cả ba nhóm, F4 đạt 0,684, gấp bốn lần F0 với cùng một model. Recall@1000 bên phải có cùng xu hướng. Dòng dưới cùng là hiệu số theo cặp cùng seed: mọi bước bổ sung đều dương ở cả ba seed, kể cả F4 so với F2, nghĩa là Relationship vẫn mang thông tin bổ sung. Ba seed cho thấy tính nhất quán, nhưng chưa đủ để khẳng định ý nghĩa thống kê.
 
-**Chuyển:** Phần tiếp theo, [tên người nói 3] sẽ trình bày ý nghĩa của kết quả này.
+**Chuyển:** Vậy con số này có ý nghĩa gì với một ngân hàng?
 
-### Slide 13. Cùng 1.000 cảnh báo, F4 tìm thêm khoảng 200 ca rửa tiền
+### Slide 14. Cùng 1.000 cảnh báo, F4 tìm thêm khoảng 200 ca rửa tiền
 *Người nói 3 · ~50 giây*
 
 - **Mục đích:** Dịch AP sang ngôn ngữ vận hành, nêu đánh đổi precision/recall và diễn giải feature quan trọng.
 - **Chỉ vào:** Cột F1 và F4 ở biểu đồ trái, rồi top feature bên phải.
 - **Nhấn mạnh:** Cùng khối lượng công việc, bắt thêm khoảng 200 ca; nhưng vẫn sót gần một nửa.
 
-> Cảm ơn bạn. Vậy con số này có ý nghĩa gì với một ngân hàng? Giả sử chuyên viên chỉ xử lý được 1.000 alert. Với F1, khoảng 712 alert là rửa tiền thật; với F4 là 915, precision 91,5%. Cùng khối lượng công việc, tìm thêm khoảng 200 ca. Nhưng recall chỉ 50,9%: vẫn còn 883 ca nằm ngoài danh sách, muốn bắt nhiều hơn phải chấp nhận nhiều alert hơn. Bên phải là các feature quan trọng nhất: số lượt nhận trước đó của sender, thời gian từ giao dịch gần nhất của receiver, độ lệch số tiền so với lịch sử. Đó là dấu hiệu money mule: tài khoản vừa nhận tiền rồi chuyển đi với số tiền bất thường. Gain importance không phải quan hệ nhân quả, nhưng giúp giải thích alert cho chuyên viên.
+> Giả sử chuyên viên chỉ xử lý được 1.000 alert. Với F1, khoảng 712 alert là rửa tiền thật; với F4 là 915, precision 91,5%. Cùng khối lượng công việc, tìm thêm khoảng 200 ca. Nhưng recall chỉ 50,9%: vẫn còn 883 ca nằm ngoài danh sách, muốn bắt nhiều hơn phải chấp nhận nhiều alert hơn. Bên phải là các feature quan trọng nhất: số lượt nhận trước đó của sender, thời gian từ giao dịch gần nhất của receiver, độ lệch số tiền so với lịch sử. Đó là dấu hiệu money mule: tài khoản vừa nhận tiền rồi chuyển đi với số tiền bất thường. Gain importance không phải quan hệ nhân quả, nhưng giúp giải thích alert cho chuyên viên.
 
 **Chuyển:** Một kết quả tốt chỉ có giá trị khi cách đánh giá đúng, nên nhóm tự kiểm tra lại.
 
-### Slide 14. Kiểm tra lại tính hợp lệ của chính đánh giá
+### Slide 15. Kiểm tra lại tính hợp lệ của chính đánh giá
 *Người nói 3 · ~1 phút 10 giây*
 
 - **Mục đích:** Thể hiện tư duy phản biện: chủ động nêu điểm yếu của đánh giá trước khi bị hỏi.
@@ -223,7 +236,7 @@ hãy rút gọn các slide sau theo mục 4.
 
 **Chuyển:** Những điều này liên hệ trực tiếp với môn an toàn bảo mật.
 
-### Slide 15. Detector là thành phần phòng thủ, và cũng có bề mặt tấn công
+### Slide 16. Detector là thành phần phòng thủ, và cũng có bề mặt tấn công
 *Người nói 3 · ~50 giây*
 
 - **Mục đích:** Trả lời trực tiếp câu hỏi 'đồ án liên quan gì đến môn An toàn và bảo mật hệ thống thông tin'.
@@ -234,7 +247,7 @@ hãy rút gọn các slide sau theo mục 4.
 
 **Chuyển:** Cuối cùng là giới hạn và hướng phát triển.
 
-### Slide 16. Giới hạn và hướng phát triển
+### Slide 17. Giới hạn và hướng phát triển
 *Người nói 3 · ~40 giây*
 
 - **Mục đích:** Nói rõ phạm vi của kết luận và chỉ ra bước tiếp theo.
@@ -245,7 +258,7 @@ hãy rút gọn các slide sau theo mục 4.
 
 **Chuyển:** Xin tóm lại.
 
-### Slide 17. Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn bổ sung dữ liệu giả.
+### Slide 18. Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn bổ sung dữ liệu giả.
 *Người nói 3 · ~30 giây*
 
 - **Mục đích:** Chốt thông điệp một câu và ba con số, mời hội đồng đặt câu hỏi.
@@ -261,10 +274,10 @@ hãy rút gọn các slide sau theo mục 4.
 - **Nói theo ý, không đọc thuộc lòng.** Mỗi slide chỉ cần nhớ mục đích, chỗ cần chỉ và câu nhấn mạnh; lời nói ở trên
   là gợi ý.
 - **Chỉ vào slide khi nói con số** để hội đồng nhìn đúng chỗ.
-- **Câu chuyển là chỗ hay bị quên.** Đặc biệt câu chuyển ở slide 9 ("vì thêm dữ liệu không giúp, nhóm chuyển sang hướng
-  B") là lý do của cả phần sau.
-- **Nếu bị lố giờ:** bỏ slide 2 (nội dung) và slide 6 (đóng góp); ở slide 14 chỉ nói ý (a); slide 15 nói trong 30 giây.
+- **Câu chuyển là chỗ hay bị quên.** Đặc biệt câu chuyển ở slide 10 ("vì thêm dữ liệu không giúp, nhóm chuyển sang
+  hướng B") là lý do của cả phần sau.
+- **Nếu bị lố giờ:** bỏ slide 2 (nội dung) và slide 6 (đóng góp); ở slide 15 chỉ nói ý (a); slide 16 nói trong 30 giây.
 - **Nếu bị hỏi giữa chừng:** trả lời ngắn một câu, nói "nhóm sẽ trình bày kỹ ở slide …" nếu câu hỏi thuộc phần sau,
   rồi quay lại mạch.
-- **Khi bị hỏi số liệu chi tiết:** mở slide 18 (dự phòng).
+- **Khi bị hỏi số liệu chi tiết:** mở slide 19 (dự phòng).
 - **Nếu bị hỏi "so với các paper khác thì sao?":** xem câu A4 trong [thuyet-trinh-va-cau-hoi.md](thuyet-trinh-va-cau-hoi.md).

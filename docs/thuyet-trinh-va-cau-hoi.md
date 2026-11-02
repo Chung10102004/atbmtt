@@ -54,13 +54,13 @@ môn An toàn bảo mật:
 
 ## 2. Flow thuyết trình (10–15 phút)
 
-Theo bộ slide [slide/AML_thuyet_trinh.pptx](../slide/AML_thuyet_trinh.pptx): 17 slide nội dung + 1 slide dự phòng,
-tổng khoảng **13:45**. Người nói và thời lượng đã ghi ở đầu speaker notes của từng slide. Có 3 người nói: người 1
-khoảng 4:40 (slide 1–7), người 2 khoảng 5:05 (slide 8–12), người 3 khoảng 4:00 (slide 13–17). Nên phân người theo phần
-mình đã trực tiếp làm, để trả lời câu hỏi sâu được.
+Theo bộ slide [slide/AML_thuyet_trinh.pptx](../slide/AML_thuyet_trinh.pptx): 18 slide nội dung + 1 slide dự phòng,
+tổng khoảng **14:35**. Lời nói chi tiết cho từng slide nằm ở [kich-ban-thuyet-trinh.md](kich-ban-thuyet-trinh.md) và trong
+speaker notes. Có 3 người nói: người 1 khoảng 4:40 (slide 1–7, bài toán và dữ liệu), người 2 khoảng 4:35 (slide 8–12,
+phương pháp và hướng A), người 3 khoảng 5:20 (slide 13–18, kết quả hướng B và đánh giá).
 
-Mạch câu chuyện: **bài toán → dữ liệu và protocol chung → Hướng A (thêm dữ liệu) thất bại và vì sao → Hướng B (thêm
-bối cảnh) thành công → ý nghĩa vận hành → tự kiểm tra tính hợp lệ → góc nhìn bảo mật → kết luận.**
+Mạch câu chuyện: **bài toán → dữ liệu và protocol chung → Hướng A: cách sinh dữ liệu, kết quả không giúp và vì sao →
+Hướng B: time policy, feature, kết quả → ý nghĩa vận hành → tự kiểm tra tính hợp lệ → góc nhìn bảo mật → kết luận.**
 
 | # | Phần | Slide | Thời gian | Người nói | Câu cần nói được |
 |---|---|---|---|---|---|
@@ -72,23 +72,24 @@ bối cảnh) thành công → ý nghĩa vận hành → tự kiểm tra tính h
 | 6 | Bài toán | Đóng góp và định vị | 0:50 | 1 | "Không phải thuật toán mới" |
 | 7 | Dữ liệu và protocol | IBM AML HI-Small, temporal split | 0:50 | 1 | "Chia theo thời gian, không random" |
 | 8 | Dữ liệu và protocol | Thiết lập thực nghiệm chung | 0:45 | 2 | "Cùng model, cùng split, cùng cách chọn threshold" |
-| 9 | Hướng A | Kết quả data augmentation | 1:20 | 2 | "Dữ liệu giả không giống thật (discriminator AUC ≥ 0,98) nên model học sai"; chuyển sang hướng B |
-| 10 | Hướng B | Time policy | 0:50 | 2 | "Không nhìn trước tương lai, không phụ thuộc thứ tự dòng" |
-| 11 | Hướng B | 63 feature, bốn nhóm | 0:50 | 2 | Mỗi nhóm cho 1 ví dụ dễ hiểu |
-| 12 | Hướng B | Kết quả ablation | 1:20 | 2 | "History tạo bước nhảy lớn nhất; F4 đạt AP 0,684; 3/3 seed đều tăng" |
-| 13 | Hướng B | Ý nghĩa vận hành | 0:50 | 3 | "Cùng 1.000 alert, bắt thêm khoảng 200 ca; nhưng recall chỉ 50,9%" |
-| 14 | Hợp lệ và bảo mật | Kiểm tra tính hợp lệ | 1:10 | 3 | "Nhóm tự tìm ra điểm yếu của chính đánh giá của mình" |
-| 15 | Hợp lệ và bảo mật | Góc nhìn an toàn bảo mật | 0:50 | 3 | Phòng thủ, leakage, evasion, bảo vệ dữ liệu |
-| 16 | Kết luận | Giới hạn và hướng phát triển | 0:40 | 3 | Kết quả có giá trị so sánh tương đối |
-| 17 | Kết luận | Kết luận và hỏi đáp | 0:30 | 3 | "Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn thêm dữ liệu giả" |
-| 18 | Dự phòng | Bảng số liệu đầy đủ | – | – | Chỉ mở khi bị hỏi số liệu |
-| | | **Tổng** | **13:45** | | |
+| 9 | Hướng A | Bốn cách sinh dữ liệu | 0:50 | 2 | "Hai cách đầu bám sát dữ liệu thật; hai cách sau phải tự học hoặc tự đoán phân phối" |
+| 10 | Hướng A | Kết quả data augmentation | 1:20 | 2 | "Dữ liệu giả không giống thật (discriminator AUC ≥ 0,98) nên model học sai"; chuyển sang hướng B |
+| 11 | Hướng B | Time policy | 0:50 | 2 | "Không nhìn trước tương lai, không phụ thuộc thứ tự dòng" |
+| 12 | Hướng B | 63 feature, bốn nhóm | 0:50 | 2 | Mỗi nhóm cho 1 ví dụ dễ hiểu |
+| 13 | Hướng B | Kết quả ablation | 1:20 | 3 | "History tạo bước nhảy lớn nhất; F4 đạt AP 0,684; 3/3 seed đều tăng" |
+| 14 | Hướng B | Ý nghĩa vận hành | 0:50 | 3 | "Cùng 1.000 alert, bắt thêm khoảng 200 ca; nhưng recall chỉ 50,9%" |
+| 15 | Hợp lệ và bảo mật | Kiểm tra tính hợp lệ | 1:10 | 3 | "Nhóm tự tìm ra điểm yếu của chính đánh giá của mình" |
+| 16 | Hợp lệ và bảo mật | Góc nhìn an toàn bảo mật | 0:50 | 3 | Phòng thủ, leakage, evasion, bảo vệ dữ liệu |
+| 17 | Kết luận | Giới hạn và hướng phát triển | 0:40 | 3 | Kết quả có giá trị so sánh tương đối |
+| 18 | Kết luận | Kết luận và hỏi đáp | 0:30 | 3 | "Với dữ liệu giao dịch, bối cảnh hành vi và đánh giá đúng thời gian quan trọng hơn thêm dữ liệu giả" |
+| 19 | Dự phòng | Bảng số liệu đầy đủ | – | – | Chỉ mở khi bị hỏi số liệu |
+| | | **Tổng** | **14:35** | | |
 
 **Mẹo:**
-- Slide 9 và 12 là hai slide kết quả chính; nói chậm và chỉ vào biểu đồ.
-- Nếu bị giới hạn 10 phút: bỏ slide 2 (nội dung) và slide 6 (đóng góp) để dành cho phần hỏi đáp, rút slide 14 còn ý
-  (a), nói slide 15 trong 30 giây.
-- Câu chuyển ở slide 9 rất quan trọng: "dữ liệu giả không giúp, nên nhóm chuyển sang thêm bối cảnh" là lý do của cả
+- Slide 10 và 13 là hai slide kết quả chính; nói chậm và chỉ vào biểu đồ.
+- Nếu bị giới hạn 10 phút: bỏ slide 2 (nội dung) và slide 6 (đóng góp) để dành cho phần hỏi đáp, rút slide 15 còn ý
+  (a), nói slide 16 trong 30 giây.
+- Câu chuyển ở slide 10 rất quan trọng: "dữ liệu giả không giúp, nên nhóm chuyển sang thêm bối cảnh" là lý do của cả
   phần sau.
 
 ### Bảng số cần thuộc
